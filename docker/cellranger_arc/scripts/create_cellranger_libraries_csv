@@ -1,0 +1,44 @@
+#!/usr/bin/env python3
+
+import argparse
+import os
+from os import listdir
+from os.path import isfile, join
+
+
+def main(args):
+    fastqs_dir_path = os.path.join(os.getcwd(), "fastqs")
+    csv_lines = ["fastqs,sample,library_type"]
+    csv_lines.append(f"{fastqs_dir_path},{args.sample_id},Gene Expression")
+
+    csv_content = "\n".join(csv_lines)
+
+    with open(args.output, "w") as file:
+        file.write(csv_content)
+
+    print(f"Finished generating {args.output}:")
+    print(csv_content)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Generate the Cell Ranger Libraries CSV which declares the input FASTQ data for the libraries that make up a Feature Barcode experiment"
+    )
+    parser.add_argument(
+        "-s",
+        "--sample-id",
+        type=str,
+        required=True,
+        help="Sample ID"
+    )
+    parser.add_argument(
+        "-o",
+        "--output",
+        type=str,
+        required=True,
+        help="Output file name for the Libraries CSV"
+    )
+
+    args = parser.parse_args()
+
+    main(args)
