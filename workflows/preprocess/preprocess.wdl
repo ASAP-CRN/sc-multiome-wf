@@ -221,6 +221,7 @@ task cellranger_arc_count {
 			--id=~{sample_id} \
 			--reference="$(pwd)/cellranger_arc_refdata" \
 			--libraries="~{sample_id}.libraries.csv" \
+			--create-bam=true \
 			--localcores ~{threads} \
 			--localmem ~{mem_gb - 4}
 
