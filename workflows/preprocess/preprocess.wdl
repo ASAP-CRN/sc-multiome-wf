@@ -37,24 +37,25 @@ workflow preprocess {
 
 		Array[String] project_sample_id = [team_id, sample.sample_id, dataset_doi_url]
 
-		String cellranger_arc_multiome_outputs_tar_gz = "~{cellranger_arc_raw_data_path}/~{sample.sample_id}.cellranger_arc_multiome_outputs.tar.gz"
-		String cellranger_arc_raw_counts = "~{cellranger_arc_raw_data_path}/~{sample.sample_id}.raw_feature_bc_matrix.h5"
-		String cellranger_arc_filtered_counts = "~{cellranger_arc_raw_data_path}/~{sample.sample_id}.filtered_feature_bc_matrix.h5"
-		String cellranger_arc_molecule_info = "~{cellranger_arc_raw_data_path}/~{sample.sample_id}.molecule_info.h5"
-		String cellranger_arc_metrics_summary_csv = "~{cellranger_arc_raw_data_path}/~{sample.sample_id}.metrics_summary.csv"
-		String cellranger_arc_per_barcode_metrics_summary_csv = "~{cellranger_arc_raw_data_path}/~{sample.sample_id}.per_barcode_metrics.csv"
-		String cellranger_arc_gex_possorted_bam = "~{cellranger_arc_raw_data_path}/~{sample.sample_id}.gex_possorted_bam.bam"
-		String cellranger_arc_gex_possorted_bam_index = "~{cellranger_arc_raw_data_path}/~{sample.sample_id}.gex_possorted_bam.bam.bai"
-		String cellranger_arc_atac_possorted_bam = "~{cellranger_arc_raw_data_path}/~{sample.sample_id}.atac_possorted_bam.bam"
-		String cellranger_arc_atac_possorted_bam_index = "~{cellranger_arc_raw_data_path}/~{sample.sample_id}.atac_possorted_bam.bam.bai"
-		String cellranger_arc_atac_fragments_tsv_gz = "~{cellranger_arc_raw_data_path}/~{sample.sample_id}.atac_fragments.tsv.gz"
-		String cellranger_arc_atac_fragments_tsv_gz_tbi = "~{cellranger_arc_raw_data_path}/~{sample.sample_id}.atac_fragments.tsv.gz.tbi"
-		String cellranger_arc_atac_peaks_bed = "~{cellranger_arc_raw_data_path}/~{sample.sample_id}.atac_peaks.bed"
-		String cellranger_arc_atac_cut_sites_bigwig = "~{cellranger_arc_raw_data_path}/~{sample.sample_id}.atac_cut_sites.bigwig"
-		String cellranger_arc_atac_peak_annotation_tsv = "~{cellranger_arc_raw_data_path}/~{sample.sample_id}.atac_peak_annotation.tsv"
+		String cellranger_arc_multiome_outputs_tar_gz = "~{cellranger_arc_raw_data_path}/~{dataset_id}.~{sample.sample_id}.cellranger_arc_multiome_outputs.tar.gz"
+		String cellranger_arc_raw_counts = "~{cellranger_arc_raw_data_path}/~{dataset_id}.~{sample.sample_id}.raw_feature_bc_matrix.h5"
+		String cellranger_arc_filtered_counts = "~{cellranger_arc_raw_data_path}/~{dataset_id}.~{sample.sample_id}.filtered_feature_bc_matrix.h5"
+		String cellranger_arc_molecule_info = "~{cellranger_arc_raw_data_path}/~{dataset_id}.~{sample.sample_id}.molecule_info.h5"
+		String cellranger_arc_metrics_summary_csv = "~{cellranger_arc_raw_data_path}/~{dataset_id}.~{sample.sample_id}.metrics_summary.csv"
+		String cellranger_arc_per_barcode_metrics_summary_csv = "~{cellranger_arc_raw_data_path}/~{dataset_id}.~{sample.sample_id}.per_barcode_metrics.csv"
+		String cellranger_arc_gex_possorted_bam = "~{cellranger_arc_raw_data_path}/~{dataset_id}.~{sample.sample_id}.gex_possorted_bam.bam"
+		String cellranger_arc_gex_possorted_bam_index = "~{cellranger_arc_raw_data_path}/~{dataset_id}.~{sample.sample_id}.gex_possorted_bam.bam.bai"
+		String cellranger_arc_atac_possorted_bam = "~{cellranger_arc_raw_data_path}/~{dataset_id}.~{sample.sample_id}.atac_possorted_bam.bam"
+		String cellranger_arc_atac_possorted_bam_index = "~{cellranger_arc_raw_data_path}/~{dataset_id}.~{sample.sample_id}.atac_possorted_bam.bam.bai"
+		String cellranger_arc_atac_fragments_tsv_gz = "~{cellranger_arc_raw_data_path}/~{dataset_id}.~{sample.sample_id}.atac_fragments.tsv.gz"
+		String cellranger_arc_atac_fragments_tsv_gz_tbi = "~{cellranger_arc_raw_data_path}/~{dataset_id}.~{sample.sample_id}.atac_fragments.tsv.gz.tbi"
+		String cellranger_arc_atac_peaks_bed = "~{cellranger_arc_raw_data_path}/~{dataset_id}.~{sample.sample_id}.atac_peaks.bed"
+		String cellranger_arc_atac_cut_sites_bigwig = "~{cellranger_arc_raw_data_path}/~{dataset_id}.~{sample.sample_id}.atac_cut_sites.bigwig"
+		String cellranger_arc_atac_peak_annotation_tsv = "~{cellranger_arc_raw_data_path}/~{dataset_id}.~{sample.sample_id}.atac_peak_annotation.tsv"
 
 		call cellranger_arc_count {
 			input:
+				dataset_id = dataset_id,
 				sample_id = sample.sample_id,
 				fastq_R1s = sample.fastq_R1s,
 				fastq_R2s = sample.fastq_R2s,
@@ -162,6 +163,7 @@ task check_output_files_exist {
 
 task cellranger_arc_count {
 	input {
+		String dataset_id
 		String sample_id
 
 		Array[File] fastq_R1s
@@ -230,61 +232,61 @@ task cellranger_arc_count {
 
 		# Save Cell Ranger ARC outs
 		cp -r ~{sample_id}/outs multiome_outputs
-		tar -czvf "~{sample_id}.cellranger_arc_multiome_outputs.tar.gz" multiome_outputs
+		tar -czvf "~{dataset_id}.~{sample_id}.cellranger_arc_multiome_outputs.tar.gz" multiome_outputs
 
 		# Rename outputs to include sample ID
-		mv ~{sample_id}/outs/raw_feature_bc_matrix.h5 ~{sample_id}.raw_feature_bc_matrix.h5
-		mv ~{sample_id}/outs/filtered_feature_bc_matrix.h5 ~{sample_id}.filtered_feature_bc_matrix.h5
-		mv ~{sample_id}/outs/molecule_info.h5 ~{sample_id}.molecule_info.h5
-		mv ~{sample_id}/outs/summary.csv ~{sample_id}.summary.csv
-		mv ~{sample_id}/outs/per_barcode_metrics.csv ~{sample_id}.per_barcode_metrics.csv
-		mv ~{sample_id}/outs/gex_possorted_bam.bam ~{sample_id}.gex_possorted_bam.bam
-		mv ~{sample_id}/outs/gex_possorted_bam.bam.bai ~{sample_id}.gex_possorted_bam.bam.bai
-		mv ~{sample_id}/outs/atac_possorted_bam.bam ~{sample_id}.atac_possorted_bam.bam
-		mv ~{sample_id}/outs/atac_possorted_bam.bam.bai ~{sample_id}.atac_possorted_bam.bam.bai
-		mv ~{sample_id}/outs/atac_fragments.tsv.gz ~{sample_id}.atac_fragments.tsv.gz
-		mv ~{sample_id}/outs/atac_fragments.tsv.gz.tbi ~{sample_id}.atac_fragments.tsv.gz.tbi
-		mv ~{sample_id}/outs/atac_peaks.bed ~{sample_id}.atac_peaks.bed
-		mv ~{sample_id}/outs/atac_cut_sites.bigwig ~{sample_id}.atac_cut_sites.bigwig
-		mv ~{sample_id}/outs/atac_peak_annotation.tsv ~{sample_id}.atac_peak_annotation.tsv
+		mv ~{sample_id}/outs/raw_feature_bc_matrix.h5 ~{dataset_id}.~{sample_id}.raw_feature_bc_matrix.h5
+		mv ~{sample_id}/outs/filtered_feature_bc_matrix.h5 ~{dataset_id}.~{sample_id}.filtered_feature_bc_matrix.h5
+		mv ~{sample_id}/outs/molecule_info.h5 ~{dataset_id}.~{sample_id}.molecule_info.h5
+		mv ~{sample_id}/outs/summary.csv ~{dataset_id}.~{sample_id}.summary.csv
+		mv ~{sample_id}/outs/per_barcode_metrics.csv ~{dataset_id}.~{sample_id}.per_barcode_metrics.csv
+		mv ~{sample_id}/outs/gex_possorted_bam.bam ~{dataset_id}.~{sample_id}.gex_possorted_bam.bam
+		mv ~{sample_id}/outs/gex_possorted_bam.bam.bai ~{dataset_id}.~{sample_id}.gex_possorted_bam.bam.bai
+		mv ~{sample_id}/outs/atac_possorted_bam.bam ~{dataset_id}.~{sample_id}.atac_possorted_bam.bam
+		mv ~{sample_id}/outs/atac_possorted_bam.bam.bai ~{dataset_id}.~{sample_id}.atac_possorted_bam.bam.bai
+		mv ~{sample_id}/outs/atac_fragments.tsv.gz ~{dataset_id}.~{sample_id}.atac_fragments.tsv.gz
+		mv ~{sample_id}/outs/atac_fragments.tsv.gz.tbi ~{dataset_id}.~{sample_id}.atac_fragments.tsv.gz.tbi
+		mv ~{sample_id}/outs/atac_peaks.bed ~{dataset_id}.~{sample_id}.atac_peaks.bed
+		mv ~{sample_id}/outs/atac_cut_sites.bigwig ~{dataset_id}.~{sample_id}.atac_cut_sites.bigwig
+		mv ~{sample_id}/outs/atac_peak_annotation.tsv ~{dataset_id}.~{sample_id}.atac_peak_annotation.tsv
 
 		upload_outputs \
 			-b ~{billing_project} \
 			-d ~{raw_data_path} \
 			-i ~{write_tsv(workflow_info)} \
-			-o "~{sample_id}.cellranger_arc_multiome_outputs.tar.gz" \
-			-o "~{sample_id}.raw_feature_bc_matrix.h5" \
-			-o "~{sample_id}.filtered_feature_bc_matrix.h5" \
-			-o "~{sample_id}.molecule_info.h5" \
-			-o "~{sample_id}.summary.csv" \
-			-o "~{sample_id}.per_barcode_metrics.csv" \
-			-o "~{sample_id}.gex_possorted_bam.bam" \
-			-o "~{sample_id}.gex_possorted_bam.bam.bai" \
-			-o "~{sample_id}.atac_possorted_bam.bam" \
-			-o "~{sample_id}.atac_possorted_bam.bam.bai" \
-			-o "~{sample_id}.atac_fragments.tsv.gz" \
-			-o "~{sample_id}.atac_fragments.tsv.gz.tbi" \
-			-o "~{sample_id}.atac_peaks.bed" \
-			-o "~{sample_id}.atac_cut_sites.bigwig" \
-			-o "~{sample_id}.atac_peak_annotation.tsv"
+			-o "~{dataset_id}.~{sample_id}.cellranger_arc_multiome_outputs.tar.gz" \
+			-o "~{dataset_id}.~{sample_id}.raw_feature_bc_matrix.h5" \
+			-o "~{dataset_id}.~{sample_id}.filtered_feature_bc_matrix.h5" \
+			-o "~{dataset_id}.~{sample_id}.molecule_info.h5" \
+			-o "~{dataset_id}.~{sample_id}.summary.csv" \
+			-o "~{dataset_id}.~{sample_id}.per_barcode_metrics.csv" \
+			-o "~{dataset_id}.~{sample_id}.gex_possorted_bam.bam" \
+			-o "~{dataset_id}.~{sample_id}.gex_possorted_bam.bam.bai" \
+			-o "~{dataset_id}.~{sample_id}.atac_possorted_bam.bam" \
+			-o "~{dataset_id}.~{sample_id}.atac_possorted_bam.bam.bai" \
+			-o "~{dataset_id}.~{sample_id}.atac_fragments.tsv.gz" \
+			-o "~{dataset_id}.~{sample_id}.atac_fragments.tsv.gz.tbi" \
+			-o "~{dataset_id}.~{sample_id}.atac_peaks.bed" \
+			-o "~{dataset_id}.~{sample_id}.atac_cut_sites.bigwig" \
+			-o "~{dataset_id}.~{sample_id}.atac_peak_annotation.tsv"
 	>>>
 
 	output {
-		String multiome_outputs_tar_gz = "~{raw_data_path}/~{sample_id}.cellranger_arc_multiome_outputs.tar.gz"
-		String raw_counts = "~{raw_data_path}/~{sample_id}.raw_feature_bc_matrix.h5"
-		String filtered_counts = "~{raw_data_path}/~{sample_id}.filtered_feature_bc_matrix.h5"
-		String molecule_info = "~{raw_data_path}/~{sample_id}.molecule_info.h5"
-		String metrics_summary_csv = "~{raw_data_path}/~{sample_id}.summary.csv"
-		String per_barcode_metrics_summary_csv = "~{raw_data_path}/~{sample_id}.per_barcode_metrics.csv"
-		String gex_possorted_bam = "~{raw_data_path}/~{sample_id}.gex_possorted_bam.bam"
-		String gex_possorted_bam_index = "~{raw_data_path}/~{sample_id}.gex_possorted_bam.bam.bai"
-		String atac_possorted_bam = "~{raw_data_path}/~{sample_id}.atac_possorted_bam.bam"
-		String atac_possorted_bam_index = "~{raw_data_path}/~{sample_id}.atac_possorted_bam.bam.bai"
-		String atac_fragments_tsv_gz = "~{raw_data_path}/~{sample_id}.atac_fragments.tsv.gz"
-		String atac_fragments_tsv_gz_tbi = "~{raw_data_path}/~{sample_id}.atac_fragments.tsv.gz.tbi"
-		String atac_peaks_bed = "~{raw_data_path}/~{sample_id}.atac_peaks.bed"
-		String atac_cut_sites_bigwig = "~{raw_data_path}/~{sample_id}.atac_cut_sites.bigwig"
-		String atac_peak_annotation_tsv = "~{raw_data_path}/~{sample_id}.atac_peak_annotation.tsv"
+		String multiome_outputs_tar_gz = "~{raw_data_path}/~{dataset_id}.~{sample_id}.cellranger_arc_multiome_outputs.tar.gz"
+		String raw_counts = "~{raw_data_path}/~{dataset_id}.~{sample_id}.raw_feature_bc_matrix.h5"
+		String filtered_counts = "~{raw_data_path}/~{dataset_id}.~{sample_id}.filtered_feature_bc_matrix.h5"
+		String molecule_info = "~{raw_data_path}/~{dataset_id}.~{sample_id}.molecule_info.h5"
+		String metrics_summary_csv = "~{raw_data_path}/~{dataset_id}.~{sample_id}.summary.csv"
+		String per_barcode_metrics_summary_csv = "~{raw_data_path}/~{dataset_id}.~{sample_id}.per_barcode_metrics.csv"
+		String gex_possorted_bam = "~{raw_data_path}/~{dataset_id}.~{sample_id}.gex_possorted_bam.bam"
+		String gex_possorted_bam_index = "~{raw_data_path}/~{dataset_id}.~{sample_id}.gex_possorted_bam.bam.bai"
+		String atac_possorted_bam = "~{raw_data_path}/~{dataset_id}.~{sample_id}.atac_possorted_bam.bam"
+		String atac_possorted_bam_index = "~{raw_data_path}/~{dataset_id}.~{sample_id}.atac_possorted_bam.bam.bai"
+		String atac_fragments_tsv_gz = "~{raw_data_path}/~{dataset_id}.~{sample_id}.atac_fragments.tsv.gz"
+		String atac_fragments_tsv_gz_tbi = "~{raw_data_path}/~{dataset_id}.~{sample_id}.atac_fragments.tsv.gz.tbi"
+		String atac_peaks_bed = "~{raw_data_path}/~{dataset_id}.~{sample_id}.atac_peaks.bed"
+		String atac_cut_sites_bigwig = "~{raw_data_path}/~{dataset_id}.~{sample_id}.atac_cut_sites.bigwig"
+		String atac_peak_annotation_tsv = "~{raw_data_path}/~{dataset_id}.~{sample_id}.atac_peak_annotation.tsv"
 	}
 
 	runtime {
