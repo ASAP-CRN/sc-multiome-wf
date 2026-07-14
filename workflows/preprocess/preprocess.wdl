@@ -11,7 +11,7 @@ workflow preprocess {
 		String dataset_doi_url
 		Array[Sample] samples
 
-		File cellranger_reference_data
+		File cellranger_arc_reference_data
 
 		String workflow_name
 		String workflow_version
@@ -61,7 +61,7 @@ workflow preprocess {
 				fastq_R2s = sample.fastq_R2s,
 				fastq_I1s = sample.fastq_I1s,
 				fastq_I2s = sample.fastq_I2s,
-				cellranger_arc_reference_data = cellranger_reference_data,
+				cellranger_arc_reference_data = cellranger_arc_reference_data,
 				raw_data_path = cellranger_arc_raw_data_path,
 				workflow_info = workflow_info,
 				billing_project = billing_project,
@@ -106,6 +106,26 @@ workflow preprocess {
 		Array[File?] atac_peaks_bed = atac_peaks_bed_output #!FileCoercion
 		Array[File?] atac_cut_sites_bigwig = atac_cut_sites_bigwig_output #!FileCoercion
 		Array[File?] atac_peak_annotation_tsv = atac_peak_annotation_tsv_output #!FileCoercion
+	}
+
+	meta {
+		description: "Preprocess the 10x Chromium Single Cell Epi Multiome data by running Cell Ranger ARC count and converting counts to AnnData object."
+	}
+
+	parameter_meta {
+		team_id: {help: "Name of the CRN Team; stored in the AnnData objects."}
+		dataset_id: {help: "Generated ASAP dataset ID; stored in the AnnData objects."}
+		dataset_doi_url: {help: "Generated Zenodo DOI URL referencing the dataset."}
+		samples: {help: "An array of Sample struct, set of samples and their associated reads and metadata information."}
+		cellranger_arc_reference_data: {help: "CellRanger ARC reference data; see https://www.10xgenomics.com/support/software/cell-ranger-arc/downloads."}
+		workflow_name: {help: "Workflow name; stored in the file-level manifest and final manifest with all saved files."}
+		workflow_version: {help: "Workflow version; stored in the file-level manifest and final manifest with all saved files."}
+		workflow_release: {help: "GitHub release; stored in the file-level manifest and final manifest with all saved files."}
+		run_timestamp: {help: "UTC timestamp; stored in the file-level manifest and final manifest with all saved files."}
+		raw_data_path_prefix: {help: "Raw data bucket path prefix; location of raw bucket to upload task outputs to (`<raw_data_bucket>/workflow_execution/preprocess`)."}
+		billing_project: {help: "Billing project to charge GCP costs."}
+		container_registry: {help: "Container registry where workflow Docker images are hosted."}
+		zones: {help: "Space-delimited set of GCP zones to spin up compute in. ['us-central1-c us-central1-f']"}
 	}
 }
 
@@ -181,8 +201,8 @@ task cellranger_arc_count {
 	}
 
 	Int threads = 16
-	Int mem_gb = 24
-	Int disk_size = ceil((size(fastq_R1s, "GB") + size(fastq_R2s, "GB") + size(fastq_I1s, "GB") + size(fastq_I2s, "GB") + size(cellranger_arc_reference_data, "GB")) * 4 + 50)
+	Int mem_gb = 48
+	Int disk_size = ceil((size(cellranger_arc_reference_data, "GB") + size(flatten([fastq_R1s, fastq_R2s, fastq_I1s, fastq_I2s]), "GB")) * 4 + 50)
 
 	command <<<
 		set -euo pipefail
@@ -297,5 +317,24 @@ task cellranger_arc_count {
 		preemptible: 3
 		bootDiskSizeGb: 40
 		zones: zones
+	}
+
+	meta {
+		description: "Processes raw sequencing data including same-cell open chromatin and gene expression profiling from 10x Chromium Single Cell Epi Multiome experiments to generate raw and filtered feature-barcode count matrices, and ATAC peaks and fragments."
+	}
+
+	parameter_meta {
+		dataset_id: {help: "Generated ASAP dataset ID; stored in the AnnData objects."}
+		sample_id: {help: "Generated ASAP sample ID; used to name output files."}
+		fastq_R1s: {help: "Sample's read 1 FASTQ file."}
+		fastq_R2s: {help: "Sample's read 2 FASTQ file."}
+		fastq_I1s: {help: "Optional FASTQ index 1."}
+		fastq_I2s: {help: "Optional FASTQ index 2."}
+		cellranger_arc_reference_data: {help: "CellRanger ARC reference data; see https://www.10xgenomics.com/support/software/cell-ranger-arc/downloads."}
+		raw_data_path: {help: "Raw data bucket path for cellranger-arc count outputs; location of raw bucket to upload task outputs to (`<raw_data_bucket>/workflow_execution/preprocess/cellranger_arc/<cellranger_arc_task_version>`)."}
+		workflow_info: {help: "UTC timestamp, workflow name, workflow version, and GitHub release; stored in the file-level manifest and final manifest with all saved files."}
+		billing_project: {help: "Billing project to charge GCP costs."}
+		container_registry: {help: "Container registry where workflow Docker images are hosted."}
+		zones: {help: "Space-delimited set of GCP zones to spin up compute in. ['us-central1-c us-central1-f']"}
 	}
 }
