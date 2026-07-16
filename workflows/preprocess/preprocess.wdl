@@ -3,6 +3,12 @@ version 1.0
 # Generate a preprocessed AnnData object
 
 import "../../wf-common/wdl/structs.wdl"
+import "../../sc-rnaseq-wf/workflows/preprocess/preprocess.wdl" as ScRnaPreprocess
+	alias Project as RnaProject
+	alias Sample as RnaSample
+import "../../sc-atacseq-wf/workflows/preprocess/preprocess.wdl" as ScAtacPreprocess
+	alias Project as AtacProject
+	alias Sample as AtacSample
 
 workflow preprocess {
 	input {
@@ -12,6 +18,7 @@ workflow preprocess {
 		Array[Sample] samples
 
 		File cellranger_arc_reference_data
+		Float cellbender_fpr
 
 		String workflow_name
 		String workflow_version
@@ -26,16 +33,47 @@ workflow preprocess {
 	# Task and subworkflow versions
 	String sub_workflow_name = "preprocess"
 	String cellranger_arc_task_version = "1.0.0"
+	# TODO This must match https://github.com/ASAP-CRN/sc-rnaseq-wf/blob/main/workflows/preprocess/preprocess.wdl
+	String cellbender_task_version = "1.0.1"
+	String rna_adata_task_version = "1.2.0"
+	# TODO This must match https://github.com/ASAP-CRN/sc-atacseq-wf/blob/main/workflows/preprocess/preprocess.wdl
+	String atac_adata_task_version = "1.0.0"
 
 	Array[Array[String]] workflow_info = [[run_timestamp, workflow_name, workflow_version, workflow_release]]
 
 	String workflow_raw_data_path_prefix = "~{raw_data_path_prefix}/~{sub_workflow_name}"
 	String cellranger_arc_raw_data_path = "~{workflow_raw_data_path_prefix}/cellranger_arc/~{cellranger_arc_task_version}"
+	String rna_cellbender_raw_data_path = "~{workflow_raw_data_path_prefix}/rna/remove_technical_artifacts/~{cellbender_task_version}"
+	String rna_adata_raw_data_path = "~{workflow_raw_data_path_prefix}/rna/counts_to_adata/~{rna_adata_task_version}"
+	String atac_adata_raw_data_path = "~{workflow_raw_data_path_prefix}/atac/counts_to_adata/~{atac_adata_task_version}"
+
+	scatter (sample_object in samples) {
+		String cellranger_arc_count_output = "~{cellranger_arc_raw_data_path}/~{dataset_id}.~{sample_object.sample_id}.raw_feature_bc_matrix.h5"
+		String rna_cellbender_count_output = "~{rna_cellbender_raw_data_path}/~{dataset_id}.~{sample_object.sample_id}.cellbender.h5"
+		String rna_initial_adata_object_output = "~{rna_adata_raw_data_path}/~{dataset_id}.~{sample_object.sample_id}.cleaned_unfiltered.h5ad"
+		String atac_initial_adata_object_output = "~{atac_adata_raw_data_path}/~{dataset_id}.~{sample_object.sample_id}.cleaned_unfiltered.h5ad"
+	}
+
+	# For each sample, outputs an array of true/false: [cellranger_arc_counts_complete, rna_remove_technical_artifacts_complete, rna_initial_adata_object_complete, atac_initial_adata_object_complete]
+	call check_output_files_exist {
+		input:
+			cellranger_arc_count_output_files = cellranger_arc_count_output,
+			rna_remove_technical_artifacts_output_files = rna_cellbender_count_output,
+			rna_initial_adata_object_output_files = rna_initial_adata_object_output,
+			atac_initial_adata_object_output_files = atac_initial_adata_object_output,
+			billing_project = billing_project,
+			zones = zones
+	}
 
 	scatter (index in range(length(samples))) {
 		Sample sample = samples[index]
 
 		Array[String] project_sample_id = [team_id, sample.sample_id, dataset_doi_url]
+
+		String cellranger_arc_count_complete = check_output_files_exist.sample_preprocessing_complete[index][0]
+		String rna_cellbender_remove_background_complete = check_output_files_exist.sample_preprocessing_complete[index][1]
+		String rna_initial_adata_object_complete = check_output_files_exist.sample_preprocessing_complete[index][2]
+		String atac_initial_adata_object_complete = check_output_files_exist.sample_preprocessing_complete[index][3]
 
 		String cellranger_arc_multiome_outputs_tar_gz = "~{cellranger_arc_raw_data_path}/~{dataset_id}.~{sample.sample_id}.cellranger_arc_multiome_outputs.tar.gz"
 		String cellranger_arc_raw_counts = "~{cellranger_arc_raw_data_path}/~{dataset_id}.~{sample.sample_id}.raw_feature_bc_matrix.h5"
@@ -53,20 +91,22 @@ workflow preprocess {
 		String cellranger_arc_atac_cut_sites_bigwig = "~{cellranger_arc_raw_data_path}/~{dataset_id}.~{sample.sample_id}.atac_cut_sites.bigwig"
 		String cellranger_arc_atac_peak_annotation_tsv = "~{cellranger_arc_raw_data_path}/~{dataset_id}.~{sample.sample_id}.atac_peak_annotation.tsv"
 
-		call cellranger_arc_count {
-			input:
-				dataset_id = dataset_id,
-				sample_id = sample.sample_id,
-				fastq_R1s = sample.fastq_R1s,
-				fastq_R2s = sample.fastq_R2s,
-				fastq_I1s = sample.fastq_I1s,
-				fastq_I2s = sample.fastq_I2s,
-				cellranger_arc_reference_data = cellranger_arc_reference_data,
-				raw_data_path = cellranger_arc_raw_data_path,
-				workflow_info = workflow_info,
-				billing_project = billing_project,
-				container_registry = container_registry,
-				zones = zones
+		if (cellranger_arc_count_complete == "false") {
+			call cellranger_arc_count {
+				input:
+					dataset_id = dataset_id,
+					sample_id = sample.sample_id,
+					fastq_R1s = sample.fastq_R1s,
+					fastq_R2s = sample.fastq_R2s,
+					fastq_I1s = sample.fastq_I1s,
+					fastq_I2s = sample.fastq_I2s,
+					cellranger_arc_reference_data = cellranger_arc_reference_data,
+					raw_data_path = cellranger_arc_raw_data_path,
+					workflow_info = workflow_info,
+					billing_project = billing_project,
+					container_registry = container_registry,
+					zones = zones
+			}
 		}
 
 		File multiome_outputs_tar_gz_output = select_first([cellranger_arc_count.multiome_outputs_tar_gz, cellranger_arc_multiome_outputs_tar_gz]) #!FileCoercion
@@ -84,6 +124,83 @@ workflow preprocess {
 		File atac_peaks_bed_output = select_first([cellranger_arc_count.atac_peaks_bed, cellranger_arc_atac_peaks_bed]) #!FileCoercion
 		File atac_cut_sites_bigwig_output = select_first([cellranger_arc_count.atac_cut_sites_bigwig, cellranger_arc_atac_cut_sites_bigwig]) #!FileCoercion
 		File atac_peak_annotation_tsv_output = select_first([cellranger_arc_count.atac_peak_annotation_tsv, cellranger_arc_atac_peak_annotation_tsv]) #!FileCoercion
+	
+		String cellbender_report_html = "~{rna_cellbender_raw_data_path}/~{dataset_id}.~{sample.sample_id}.cellbender_report.html"
+		String cellbender_removed_background_counts = "~{rna_cellbender_raw_data_path}/~{dataset_id}.~{sample.sample_id}.cellbender.h5"
+		String cellbender_filtered_removed_background_counts = "~{rna_cellbender_raw_data_path}/~{dataset_id}.~{sample.sample_id}.cellbender_filtered.h5"
+		String cellbender_cell_barcodes_csv = "~{rna_cellbender_raw_data_path}/~{dataset_id}.~{sample.sample_id}.cellbender_cell_barcodes.csv"
+		String cellbender_graph_pdf = "~{rna_cellbender_raw_data_path}/~{dataset_id}.~{sample.sample_id}.cellbender.pdf"
+		String cellbender_log = "~{rna_cellbender_raw_data_path}/~{dataset_id}.~{sample.sample_id}.cellbender.log"
+		String cellbender_metrics_csv = "~{rna_cellbender_raw_data_path}/~{dataset_id}.~{sample.sample_id}.cellbender_metrics.csv"
+		String cellbender_posterior_probability = "~{rna_cellbender_raw_data_path}/~{dataset_id}.~{sample.sample_id}.cellbend_posterior.h5"
+
+		if (rna_cellbender_remove_background_complete == "false") {
+			call ScRnaPreprocess.remove_technical_artifacts as rna_remove_technical_artifacts {
+				input:
+					dataset_id = dataset_id,
+					sample_id = sample.sample_id,
+					raw_counts = raw_counts_output,
+					cellbender_fpr = cellbender_fpr,
+					raw_data_path = rna_cellbender_raw_data_path,
+					workflow_info = workflow_info,
+					billing_project = billing_project,
+					container_registry = container_registry,
+					zones = zones
+			}
+		}
+
+		File report_html_output = select_first([rna_remove_technical_artifacts.report_html, cellbender_report_html]) #!FileCoercion
+		File removed_background_counts_output = select_first([rna_remove_technical_artifacts.removed_background_counts, cellbender_removed_background_counts]) #!FileCoercion
+		File filtered_removed_background_counts_output = select_first([rna_remove_technical_artifacts.filtered_removed_background_counts, cellbender_filtered_removed_background_counts]) #!FileCoercion
+		File cell_barcodes_csv_output = select_first([rna_remove_technical_artifacts.cell_barcodes_csv, cellbender_cell_barcodes_csv]) #!FileCoercion
+		File graph_pdf_output = select_first([rna_remove_technical_artifacts.graph_pdf, cellbender_graph_pdf]) #!FileCoercion
+		File log_output = select_first([rna_remove_technical_artifacts.log, cellbender_log]) #!FileCoercion
+		File metrics_csv_output = select_first([rna_remove_technical_artifacts.metrics_csv, cellbender_metrics_csv]) #!FileCoercion
+		File posterior_probability_output = select_first([rna_remove_technical_artifacts.posterior_probability, cellbender_posterior_probability]) #!FileCoercion
+
+		String preprocessed_rna_adata_object = "~{rna_adata_raw_data_path}/~{dataset_id}.~{sample.sample_id}.cleaned_unfiltered.h5ad"
+
+		if (rna_initial_adata_object_complete == "false") {
+			call ScRnaPreprocess.counts_to_adata as rna_counts_to_adata {
+				input:
+					sample_id = sample.sample_id,
+					batch = select_first([sample.batch]),
+					sex = select_first([sample.sex]),
+					team_id = team_id,
+					dataset_id = dataset_id,
+					cellbender_counts = removed_background_counts_output,
+					raw_data_path = rna_adata_raw_data_path,
+					workflow_info = workflow_info,
+					billing_project = billing_project,
+					container_registry = container_registry,
+					zones = zones
+			}
+		}
+
+		File preprocessed_rna_adata_object_output = select_first([rna_counts_to_adata.initial_adata_object, preprocessed_rna_adata_object]) #!FileCoercion
+		
+		String preprocessed_atac_adata_object = "~{atac_adata_raw_data_path}/~{dataset_id}.~{sample.sample_id}.cleaned_unfiltered.h5ad"
+
+		if (atac_initial_adata_object_complete == "false") {
+			call ScAtacPreprocess.counts_to_adata as atac_counts_to_adata {
+				input:
+					team_id = team_id,
+					dataset_id = dataset_id,
+					pool_id = pool.pool_id,
+					source_subject_id = sample.source_subject_id,
+					subject_id = sample.asap_subject_id,
+					sample_id = sample.sample_id,
+					batch = select_first([sample.batch]),
+					sample_split_fragments_tsv_gz = sample_split_fragments_tsv_gz_output[sample_index],
+					raw_data_path = adata_raw_data_path,
+					workflow_info = workflow_info,
+					billing_project = billing_project,
+					container_registry = container_registry,
+					zones = zones
+			}
+		}
+
+		File preprocessed_atac_adata_object_output = select_first([atac_counts_to_adata.initial_adata_object, preprocessed_atac_adata_object]) #!FileCoercion
 	}
 
 	output {
@@ -106,6 +223,22 @@ workflow preprocess {
 		Array[File?] atac_peaks_bed = atac_peaks_bed_output #!FileCoercion
 		Array[File?] atac_cut_sites_bigwig = atac_cut_sites_bigwig_output #!FileCoercion
 		Array[File?] atac_peak_annotation_tsv = atac_peak_annotation_tsv_output #!FileCoercion
+
+		# RNA - Remove technical artifacts with Cellbender
+		Array[File] report_html = report_html_output
+		Array[File] removed_background_counts = removed_background_counts_output #!FileCoercion
+		Array[File] filtered_removed_background_counts = filtered_removed_background_counts_output #!FileCoercion
+		Array[File] cell_barcodes_csv = cell_barcodes_csv_output #!FileCoercion
+		Array[File] graph_pdf = graph_pdf_output #!FileCoercion
+		Array[File] log = log_output #!FileCoercion
+		Array[File] metrics_csv = metrics_csv_output #!FileCoercion
+		Array[File] posterior_probability = posterior_probability_output #!FileCoercion
+
+		# RNA - AnnData counts
+		Array[File] rna_initial_adata_object = preprocessed_rna_adata_object_output #!FileCoercion
+
+		# ATAC - AnnData counts
+		Array[File] atac_initial_adata_object = preprocessed_atac_adata_object_output #!FileCoercion
 	}
 
 	meta {
@@ -118,6 +251,7 @@ workflow preprocess {
 		dataset_doi_url: {help: "Generated Zenodo DOI URL referencing the dataset."}
 		samples: {help: "An array of Sample struct, set of samples and their associated reads and metadata information."}
 		cellranger_arc_reference_data: {help: "CellRanger ARC reference data; see https://www.10xgenomics.com/support/software/cell-ranger-arc/downloads."}
+		cellbender_fpr: {help: "Cellbender false positive rate. [0.0]"}
 		workflow_name: {help: "Workflow name; stored in the file-level manifest and final manifest with all saved files."}
 		workflow_version: {help: "Workflow version; stored in the file-level manifest and final manifest with all saved files."}
 		workflow_release: {help: "GitHub release; stored in the file-level manifest and final manifest with all saved files."}
@@ -131,9 +265,10 @@ workflow preprocess {
 
 task check_output_files_exist {
 	input {
-		Array[String] cellranger_count_output_files
-		Array[String] remove_technical_artifacts_output_files
-		Array[String] initial_adata_object_output_files
+		Array[String] cellranger_arc_count_output_files
+		Array[String] rna_remove_technical_artifacts_output_files
+		Array[String] rna_initial_adata_object_output_files
+		Array[String] atac_initial_adata_object_output_files
 
 		String billing_project
 		String zones
@@ -143,28 +278,39 @@ task check_output_files_exist {
 		set -euo pipefail
 
 		while read -r output_files || [[ -n "${output_files}" ]]; do
-			cellranger_counts_file=$(echo "${output_files}" | cut -f 1)
-			cellbender_counts_file=$(echo "${output_files}" | cut -f 2)
-			initial_adata_object_file=$(echo "${output_files}" | cut -f 3)
+			cellranger_arc_counts_file=$(echo "${output_files}" | cut -f 1)
+			rna_cellbender_counts_file=$(echo "${output_files}" | cut -f 2)
+			rna_initial_adata_object_file=$(echo "${output_files}" | cut -f 3)
+			atac_initial_adata_object_file=$(echo "${output_files}" | cut -f 4)
 
-			if gsutil -u ~{billing_project} ls "${cellranger_counts_file}"; then
-				if gsutil -u ~{billing_project} ls "${cellbender_counts_file}"; then
-					if gsutil -u ~{billing_project} ls "${initial_adata_object_file}"; then
-						# If we find all outputs, don't rerun anything
-						echo -e "true\ttrue\ttrue" >> sample_preprocessing_complete.tsv
+			if gcloud storage ls --billing-project=~{billing_project} "${cellranger_arc_counts_file}"; then
+				# Check RNA outputs
+				if gcloud storage ls --billing-project=~{billing_project} "${rna_cellbender_counts_file}"; then
+					if gcloud storage ls --billing-project=~{billing_project} "${rna_initial_adata_object_file}"; then
+						# If we find all RNA outputs, don't rerun anything on the RNA side
+						rna_result="true\ttrue\ttrue"
 					else
-						# If we find cellranger and cellbender outputs, but don't find adata outputs, just rerun counts_to_adata
-						echo -e "true\ttrue\tfalse" >> sample_preprocessing_complete.tsv
+						# If we find cellranger and cellbender outputs, but don't find RNA adata outputs, just rerun counts_to_adata
+						rna_result="true\ttrue\tfalse"
 					fi
 				else
 					# If we find cellranger, but not cellbender outputs, it does not matter if adata objects exist, so run (or rerun) both cellbender and counts_to_adata
-					echo -e "true\tfalse\tfalse" >> sample_preprocessing_complete.tsv
+					rna_result="true\tfalse\tfalse"
 				fi
+
+				# Check ATAC outputs
+				if gcloud storage ls --billing-project=~{billing_project} "${atac_initial_adata_object_file}"; then
+					atac_result="true"
+				else
+					atac_result="false"
+				fi
+
+				echo -e "${rna_result}\t${atac_result}" >> sample_preprocessing_complete.tsv
 			else
-				# If we don't find cellranger output, we must also need to run (or rerun) preprocessing
-				echo -e "false\tfalse\tfalse" >> sample_preprocessing_complete.tsv
+				# If we don't find cellranger output, we must also need to run (or rerun) preprocessing for both RNA and ATAC
+				echo -e "false\tfalse\tfalse\tfalse" >> sample_preprocessing_complete.tsv
 			fi
-		done < <(paste ~{write_lines(cellranger_count_output_files)} ~{write_lines(remove_technical_artifacts_output_files)} ~{write_lines(initial_adata_object_output_files)})
+		done < <(paste ~{write_lines(cellranger_arc_count_output_files)} ~{write_lines(rna_remove_technical_artifacts_output_files)} ~{write_lines(rna_initial_adata_object_output_files)} ~{write_lines(atac_initial_adata_object_output_files)})
 	>>>
 
 	output {
