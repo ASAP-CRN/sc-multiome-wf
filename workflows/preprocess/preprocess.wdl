@@ -202,21 +202,21 @@ workflow preprocess {
 		Array[Array[String]] project_sample_ids = project_sample_id
 
 		# Cellranger ARC
-		Array[File?] multiome_outputs_tar_gz = multiome_outputs_tar_gz_output #!FileCoercion
-		Array[File?] raw_counts = raw_counts_output #!FileCoercion
-		Array[File?] filtered_counts = filtered_counts_output #!FileCoercion
-		Array[File?] molecule_info = molecule_info_output #!FileCoercion
-		Array[File?] metrics_summary_csv = metrics_summary_csv_output #!FileCoercion
-		Array[File?] per_barcode_metrics_summary_csv = per_barcode_metrics_summary_csv_output #!FileCoercion
-		Array[File?] gex_possorted_bam = gex_possorted_bam_output #!FileCoercion
-		Array[File?] gex_possorted_bam_index = gex_possorted_bam_index_output #!FileCoercion
-		Array[File?] atac_possorted_bam = atac_possorted_bam_output #!FileCoercion
-		Array[File?] atac_possorted_bam_index = atac_possorted_bam_index_output #!FileCoercion
-		Array[File?] atac_fragments_tsv_gz = atac_fragments_tsv_gz_output #!FileCoercion
-		Array[File?] atac_fragments_tsv_gz_tbi = atac_fragments_tsv_gz_tbi_output #!FileCoercion
-		Array[File?] atac_peaks_bed = atac_peaks_bed_output #!FileCoercion
-		Array[File?] atac_cut_sites_bigwig = atac_cut_sites_bigwig_output #!FileCoercion
-		Array[File?] atac_peak_annotation_tsv = atac_peak_annotation_tsv_output #!FileCoercion
+		Array[File] multiome_outputs_tar_gz = multiome_outputs_tar_gz_output #!FileCoercion
+		Array[File] raw_counts = raw_counts_output #!FileCoercion
+		Array[File] filtered_counts = filtered_counts_output #!FileCoercion
+		Array[File] molecule_info = molecule_info_output #!FileCoercion
+		Array[File] metrics_summary_csv = metrics_summary_csv_output #!FileCoercion
+		Array[File] per_barcode_metrics_summary_csv = per_barcode_metrics_summary_csv_output #!FileCoercion
+		Array[File] gex_possorted_bam = gex_possorted_bam_output #!FileCoercion
+		Array[File] gex_possorted_bam_index = gex_possorted_bam_index_output #!FileCoercion
+		Array[File] atac_possorted_bam = atac_possorted_bam_output #!FileCoercion
+		Array[File] atac_possorted_bam_index = atac_possorted_bam_index_output #!FileCoercion
+		Array[File] atac_fragments_tsv_gz = atac_fragments_tsv_gz_output #!FileCoercion
+		Array[File] atac_fragments_tsv_gz_tbi = atac_fragments_tsv_gz_tbi_output #!FileCoercion
+		Array[File] atac_peaks_bed = atac_peaks_bed_output #!FileCoercion
+		Array[File] atac_cut_sites_bigwig = atac_cut_sites_bigwig_output #!FileCoercion
+		Array[File] atac_peak_annotation_tsv = atac_peak_annotation_tsv_output #!FileCoercion
 
 		# RNA - Remove technical artifacts with Cellbender
 		Array[File] report_html = report_html_output
