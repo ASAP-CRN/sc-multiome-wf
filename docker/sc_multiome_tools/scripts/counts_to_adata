@@ -1,0 +1,108 @@
+#!/usr/bin/env python3
+
+import argparse
+import snapatac2 as snap
+
+
+def add_metadata(
+    adata: snap.AnnData,
+    sample_id: str,
+    batch: str,
+    sex: str,
+    team_id: str,
+    dataset_id: str
+):
+    print("Adding metadata to AnnData object")
+    adata.obs["sample"] = sample_id
+    adata.obs["batch"] = batch
+    adata.obs["sex"] = sex
+    adata.obs["team"] = team_id
+    adata.obs["dataset"] = dataset_id
+    adata.obs["batch_id"] = f"{team_id}_{dataset_id}_{batch}"
+
+    return adata
+
+
+def main(args):
+    # This computes basic QC metrics like the number of unique fragments per cell, fraction of duplicated reads and fraction of mitochondrial read 
+    adata = snap.pp.import_fragments(
+        fragment_file=args.fragments,
+        chrom_sizes=snap.genome.hg38,
+        sorted_by_barcode=False
+    )
+    adata = add_metadata(
+        adata,
+        args.sample_id,
+        args.batch,
+        args.sex,
+        args.team_id,
+        args.dataset_id
+    )
+
+    # Compute scores and add vars to in-memory AnnData
+    snap.metrics.tsse(adata, snap.genome.hg38)
+    snap.pp.add_tile_matrix(adata, bin_size=500)
+
+    adata.write(
+        filename=args.adata_output
+    )
+    print(f"Wrote {args.adata_output}")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Convert Cell Ranger ARC counts to AnnData objects"
+    )
+    parser.add_argument(
+        "-f",
+        "--fragments",
+        type=str,
+        required=True,
+        help="The Cell Ranger ARC atac_fragments.tsv.gz output that is the barcoded and aligned fragment file"
+    )
+    parser.add_argument(
+        "-s",
+        "--sample-id",
+        type=str,
+        required=True,
+        help="ASAP sample ID"
+    )
+    parser.add_argument(
+        "-b",
+        "--batch",
+        type=str,
+        required=True,
+        help="ASAP batch from which the sample/dataset originated"
+    )
+    parser.add_argument(
+        "-c",
+        "--sex",
+        type=str,
+        required=True,
+        help="The sample's sex"
+    )
+    parser.add_argument(
+        "-t",
+        "--team-id",
+        type=str,
+        required=True,
+        help="CRN Team ID"
+    )
+    parser.add_argument(
+        "-d",
+        "--dataset-id",
+        type=str,
+        required=True,
+        help="ASAP dataset ID"
+    )
+    parser.add_argument(
+        "-o",
+        "--adata-output",
+        type=str,
+        required=True,
+        help="Output file name for saving the AnnData object"
+    )
+
+    args = parser.parse_args()
+
+    main(args)

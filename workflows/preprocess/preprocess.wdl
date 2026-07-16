@@ -6,9 +6,6 @@ import "../../wf-common/wdl/structs.wdl"
 import "../../sc-rnaseq-wf/workflows/preprocess/preprocess.wdl" as ScRnaPreprocess
 	alias Project as RnaProject
 	alias Sample as RnaSample
-import "../../sc-atacseq-wf/workflows/preprocess/preprocess.wdl" as ScAtacPreprocess
-	alias Project as AtacProject
-	alias Sample as AtacSample
 
 workflow preprocess {
 	input {
@@ -36,7 +33,6 @@ workflow preprocess {
 	# TODO This must match https://github.com/ASAP-CRN/sc-rnaseq-wf/blob/main/workflows/preprocess/preprocess.wdl
 	String cellbender_task_version = "1.0.1"
 	String rna_adata_task_version = "1.2.0"
-	# TODO This must match https://github.com/ASAP-CRN/sc-atacseq-wf/blob/main/workflows/preprocess/preprocess.wdl
 	String atac_adata_task_version = "1.0.0"
 
 	Array[Array[String]] workflow_info = [[run_timestamp, workflow_name, workflow_version, workflow_release]]
@@ -182,17 +178,15 @@ workflow preprocess {
 		String preprocessed_atac_adata_object = "~{atac_adata_raw_data_path}/~{dataset_id}.~{sample.sample_id}.cleaned_unfiltered.h5ad"
 
 		if (atac_initial_adata_object_complete == "false") {
-			call ScAtacPreprocess.counts_to_adata as atac_counts_to_adata {
+			call atac_counts_to_adata {
 				input:
-					team_id = team_id,
-					dataset_id = dataset_id,
-					pool_id = pool.pool_id,
-					source_subject_id = sample.source_subject_id,
-					subject_id = sample.asap_subject_id,
 					sample_id = sample.sample_id,
 					batch = select_first([sample.batch]),
-					sample_split_fragments_tsv_gz = sample_split_fragments_tsv_gz_output[sample_index],
-					raw_data_path = adata_raw_data_path,
+					sex = select_first([sample.sex]),
+					team_id = team_id,
+					dataset_id = dataset_id,
+					fragments_tsv_gz = atac_fragments_tsv_gz_output,
+					raw_data_path = atac_adata_raw_data_path,
 					workflow_info = workflow_info,
 					billing_project = billing_project,
 					container_registry = container_registry,
@@ -478,6 +472,78 @@ task cellranger_arc_count {
 		fastq_I2s: {help: "Optional FASTQ index 2."}
 		cellranger_arc_reference_data: {help: "CellRanger ARC reference data; see https://www.10xgenomics.com/support/software/cell-ranger-arc/downloads."}
 		raw_data_path: {help: "Raw data bucket path for cellranger-arc count outputs; location of raw bucket to upload task outputs to (`<raw_data_bucket>/workflow_execution/preprocess/cellranger_arc/<cellranger_arc_task_version>`)."}
+		workflow_info: {help: "UTC timestamp, workflow name, workflow version, and GitHub release; stored in the file-level manifest and final manifest with all saved files."}
+		billing_project: {help: "Billing project to charge GCP costs."}
+		container_registry: {help: "Container registry where workflow Docker images are hosted."}
+		zones: {help: "Space-delimited set of GCP zones to spin up compute in. ['us-central1-c us-central1-f']"}
+	}
+}
+
+task atac_counts_to_adata {
+	input {
+		String sample_id
+		String batch
+		String sex
+		String team_id
+		String dataset_id
+
+		File fragments_tsv_gz
+
+		String raw_data_path
+		Array[Array[String]] workflow_info
+		String billing_project
+		String container_registry
+		String zones
+	}
+
+	Int disk_size = ceil(size(fragments_tsv_gz, "GB") * 2 + 20)
+
+	command <<<
+		set -euo pipefail
+
+		/usr/bin/time -v \
+		counts_to_adata \
+			--cellranger-arc-fragments ~{fragments_tsv_gz} \
+			--sample-id ~{sample_id} \
+			--batch ~{batch} \
+			--sex ~{sex} \
+			--team ~{team_id} \
+			--dataset ~{dataset_id} \
+			--adata-output ~{dataset_id}.~{sample_id}.cleaned_unfiltered.h5ad
+
+		upload_outputs \
+			-b ~{billing_project} \
+			-d ~{raw_data_path} \
+			-i ~{write_tsv(workflow_info)} \
+			-o "~{dataset_id}.~{sample_id}.cleaned_unfiltered.h5ad"
+	>>>
+
+	output {
+		String initial_adata_object = "~{raw_data_path}/~{dataset_id}.~{sample_id}.cleaned_unfiltered.h5ad"
+	}
+
+	runtime {
+		docker: "~{container_registry}/sc_multiome_tools:1.0.0"
+		cpu: 4
+		memory: "32 GB"
+		disks: "local-disk ~{disk_size} HDD"
+		preemptible: 3
+		bootDiskSizeGb: 40
+		zones: zones
+	}
+
+	meta {
+		description: "Converts Cell Ranger ARC counts into AnnData objects using SnapATAC2."
+	}
+
+	parameter_meta {
+		sample_id: {help: "Generated ASAP sample ID; stored in the AnnData objects and used to name output files."}
+		batch: {help: "The sample's batch; stored in the AnnData objects."}
+		sex: {help: "The sample's sex; stored in the AnnData objects."}
+		team_id: {help: "Name of the CRN Team; stored in the AnnData objects."}
+		dataset_id: {help: "Generated ASAP dataset ID; stored in the AnnData objects."}
+		fragments_tsv_gz: {help: "Count and barcode information for every ATAC fragment observed in the experiment in TSV format output by Cell Ranger ARC."}
+		raw_data_path: {help: "Raw data bucket path for counts to adata outputs; location of raw bucket to upload task outputs to (`<raw_data_bucket>/workflow_execution/preprocess/atac/counts_to_adata/<atac_adata_task_version>`)."}
 		workflow_info: {help: "UTC timestamp, workflow name, workflow version, and GitHub release; stored in the file-level manifest and final manifest with all saved files."}
 		billing_project: {help: "Billing project to charge GCP costs."}
 		container_registry: {help: "Container registry where workflow Docker images are hosted."}
