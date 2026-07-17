@@ -7,6 +7,7 @@ import "../wf-common/wdl/tasks/get_workflow_metadata.wdl" as GetWorkflowMetadata
 import "preprocess/preprocess.wdl" as Preprocess
 import "../sc-rnaseq-wf/workflows/cohort_analysis/cohort_analysis.wdl" as ScRnaCohortAnalysis
 import "../sc-atacseq-wf/workflows/cohort_analysis/cohort_analysis.wdl" as ScAtacCohortAnalysis
+import "cohort_analysis/cohort_analysis.wdl" as MultiomeCohortAnalysis
 
 workflow sc_multiome_analysis {
 	input {
@@ -54,6 +55,9 @@ workflow sc_multiome_analysis {
 		# ATAC - Groups and features
 		Array[String] atac_groups = ["sample", "batch", "team", "dataset", "batch_id", "leiden"]
 		Array[String] atac_features = ["n_fragment", "tsse", "frac_dup", "frac_mito", "doublet_score", "doublet_probability"]
+
+		# Multiome - QC
+		Float min_overlap_frac
 
 		# Cohort analysis
 		Boolean run_cross_team_cohort_analysis = false
@@ -192,6 +196,26 @@ workflow sc_multiome_analysis {
 					container_registry = container_registry,
 					zones = zones
 			}
+
+			call MultiomeCohortAnalysis.cohort_analysis as multiome_project_cohort_analysis {
+				input:
+					cohort_id = project.asap_team_id,
+					project_sample_ids = preprocess.project_sample_ids,
+					preprocessing_output_file_paths = multiome_preprocessing_output_file_paths,
+					filtered_rna_adata_object = rna_project_cohort_analysis.filtered_adata_object,
+					filtered_atac_adata_object = atac_project_cohort_analysis.merged_adata_object,
+					min_overlap_frac = min_overlap_frac,
+					workflow_name = workflow_name,
+					workflow_version = workflow_version,
+					workflow_release = workflow_release,
+					crn_release_version = "~{crn_release_version}/multiome",
+					run_timestamp = get_workflow_metadata.timestamp,
+					raw_data_path_prefix = project_raw_data_path_prefix,
+					staging_data_buckets = project.staging_data_buckets,
+					billing_project = get_workflow_metadata.billing_project,
+					container_registry = container_registry,
+					zones = zones
+			}
 		}
 	}
 
@@ -252,6 +276,26 @@ workflow sc_multiome_analysis {
 				workflow_version = workflow_version,
 				workflow_release = workflow_release,
 				crn_release_version = "~{crn_release_version}/atac",
+				run_timestamp = get_workflow_metadata.timestamp,
+				raw_data_path_prefix = cohort_raw_data_path_prefix,
+				staging_data_buckets = cohort_staging_data_buckets,
+				billing_project = get_workflow_metadata.billing_project,
+				container_registry = container_registry,
+				zones = zones
+		}
+
+		call MultiomeCohortAnalysis.cohort_analysis as multiome_cross_team_cohort_analysis {
+			input:
+				cohort_id = cohort_id,
+				project_sample_ids = flatten(preprocess.project_sample_ids),
+				preprocessing_output_file_paths = flatten(multiome_preprocessing_output_file_paths),
+				filtered_rna_adata_object = rna_cross_team_cohort_analysis.filtered_adata_object,
+				filtered_atac_adata_object = atac_cross_team_cohort_analysis.merged_adata_object,
+				min_overlap_frac = min_overlap_frac,
+				workflow_name = workflow_name,
+				workflow_version = workflow_version,
+				workflow_release = workflow_release,
+				crn_release_version = "~{crn_release_version}/multiome",
 				run_timestamp = get_workflow_metadata.timestamp,
 				raw_data_path_prefix = cohort_raw_data_path_prefix,
 				staging_data_buckets = cohort_staging_data_buckets,
@@ -498,6 +542,13 @@ workflow sc_multiome_analysis {
 		File? atac_cohort_final_metadata_csv = atac_cross_team_cohort_analysis.final_metadata_csv
 
 		Array[File]? atac_cohort_manifests = atac_cross_team_cohort_analysis.cohort_analysis_manifest_tsvs
+
+		#######################################
+		################# ATAC ################
+		#######################################
+		# Project cohort analysis outputs
+
+		# Cross-team cohort analysis outputs
 	}
 
 	meta {
@@ -531,6 +582,7 @@ workflow sc_multiome_analysis {
 		peakvi_batch_size: {help: "Training batch size for PeakVI. Controls how many cells are processed per training step. [128]"}
 		atac_groups: {help: "ATAC groups to produce umap plots for. ['sample', 'batch', 'team', 'dataset', 'batch_id', 'leiden']"}
 		atac_features: {help: "ATAC features to produce umap plots for. ['n_fragment', 'tsse', 'frac_dup', 'frac_mito', 'doublet_score', 'doublet_probability']"}
+		min_overlap_frac: {help: "Minimum fraction of the smaller modality that must be shared; below this the run fails as a likely barcode-key mismatch. [0.5]"}
 		run_cross_team_cohort_analysis: {help: "Whether to run downstream harmonization steps on all samples across projects. If set to false, only preprocessing steps (cellranger and generating the initial adata object(s)) will run for samples. [false]"}
 		cohort_raw_data_bucket: {help: "Bucket to upload cross-team cohort intermediate files to."}
 		cohort_staging_data_buckets: {help: "Set of buckets to stage cross-team cohort analysis outputs in."}
