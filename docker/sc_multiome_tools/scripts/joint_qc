@@ -1,0 +1,115 @@
+#!/usr/bin/env python3
+
+import argparse
+import numpy as np
+import scanpy as sc
+import mudata as md
+import hdf5plugin
+
+
+def intersect_and_build(
+    adata_rna: sc.AnnData, adata_atac: sc.AnnData, min_overlap_frac: float
+):
+    """
+    Assemble a paired-Multiome MuData from the two cohort-level, post-filter
+    AnnData objects:
+      - RNA:  {cohort}.filtered.h5ad         (output of the RNA `filter` task)
+      - ATAC: {cohort}.merged_filtered.h5ad  (output of the ATAC `merge_and_qc` task)
+
+    Barcodes are expected to match across modalities (ARC uses a shared GEX
+    barcode as the joint cell identifier)..
+    """
+    n_rna = adata_rna.n_obs
+    n_atac = adata_atac.n_obs
+    print(f"RNA cells (post-QC, from filter): {n_rna}")
+    print(f"ATAC cells (post-QC, from merge_and_qc): {n_atac}")
+
+    shared = adata_rna.obs_names.intersection(adata_atac.obs_names)
+    n_shared = len(shared)
+    smaller = min(n_rna, n_atac)
+    frac = n_shared / smaller if smaller else 0.0
+    print(f"Paired cells (intersection): {n_shared}  "
+          f"({frac:.1%} of the smaller modality)")
+
+    # Fail loudly on barcode-key mismatch rather than silently producing an
+    # empty/degenerate MuData. The usual culprits are the '-1' gem-well suffix
+    # or one modality keyed on the ATAC barcode and the other on the GEX barcode.
+    if n_shared == 0:
+        raise ValueError(
+            "Zero shared barcodes between RNA and ATAC. Barcode keys do not "
+            "match -- check the '-1' suffix and whether ATAC is keyed on "
+            "atac_barcode vs gex_barcode (translate via per_barcode_metrics.csv)."
+        )
+    if frac < min_overlap_frac:
+        raise ValueError(
+            f"Only {frac:.1%} of the smaller modality is shared "
+            f"(threshold {min_overlap_frac:.0%}). This almost always signals a "
+            "barcode-format mismatch rather than genuine QC divergence. "
+            f"RNA={n_rna}, ATAC={n_atac}, shared={n_shared}."
+        )
+
+    adata_rna = adata_rna[shared].copy()
+    adata_atac = adata_atac[shared].copy()
+
+    mdata = md.MuData({"rna": adata_rna, "atac": adata_atac})
+
+    # Enforce a shared observation axis and propagate common obs columns to the
+    # top level so joint steps (integration, annotation, label transfer) see them.
+    md.pp.intersect_obs(mdata)
+    mdata.update()
+
+    print(f"Built MuData: {mdata.n_obs} cells x "
+          f"({mdata.mod['rna'].n_vars} genes, {mdata.mod['atac'].n_vars} peaks)")
+
+    return mdata
+
+
+def main(args):
+    adata_rna = sc.read_h5ad(args.rna_adata_input)
+    adata_atac = sc.read_h5ad(args.atac_adata_input)
+
+    mdata = intersect_and_build(adata_rna, adata_atac, args.min_overlap_frac)
+
+    mdata.write(
+        filename=args.mudata_output,
+        compression="gzip"
+    )
+    print(f"Wrote {args.mudata_output}")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Intersect filtered RNA and ATAC barcodes into a paired Multiome MuData"
+    )
+    parser.add_argument(
+        "-r",
+        "--rna-adata-input",
+        type=str,
+        required=True,
+        help="Cohort-level filtered RNA AnnData ({cohort}.filtered.h5ad from the RNA `filter` task)",
+    )
+    parser.add_argument(
+        "-a",
+        "--atac-adata-input",
+        type=str,
+        required=True,
+        help="Cohort-level filtered ATAC AnnData ({cohort}.merged_filtered.h5ad from the ATAC `merge_and_qc` task)",
+    )
+    parser.add_argument(
+        "-f",
+        "--min-overlap-frac",
+        type=float,
+        default=0.5,
+        help="Minimum fraction of the smaller modality that must be shared; below this the run fails as a likely barcode-key mismatch [0.5]",
+    )
+    parser.add_argument(
+        "-o",
+        "--mudata-output",
+        type=str,
+        required=True,
+        help="Output file name for saving the paired MuData object"
+    )
+
+    args = parser.parse_args()
+
+    main(args)

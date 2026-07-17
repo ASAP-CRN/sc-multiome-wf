@@ -96,7 +96,7 @@ workflow sc_multiome_analysis {
 				zones = zones
 		}
 
-		Array[String] preprocessing_output_file_paths = flatten([
+		Array[String] multiome_preprocessing_output_file_paths = flatten([
 			preprocess.multiome_outputs_tar_gz,
 			preprocess.raw_counts,
 			preprocess.filtered_counts,
@@ -111,7 +111,10 @@ workflow sc_multiome_analysis {
 			preprocess.atac_fragments_tsv_gz_tbi,
 			preprocess.atac_peaks_bed,
 			preprocess.atac_cut_sites_bigwig,
-			preprocess.atac_peak_annotation_tsv,
+			preprocess.atac_peak_annotation_tsv
+		]) #!StringCoercion
+
+		Array[String] rna_preprocessing_output_file_paths = flatten([
 			preprocess.report_html,
 			preprocess.removed_background_counts,
 			preprocess.filtered_removed_background_counts,
@@ -120,7 +123,10 @@ workflow sc_multiome_analysis {
 			preprocess.log,
 			preprocess.metrics_csv,
 			preprocess.posterior_probability,
-			preprocess.rna_initial_adata_object,
+			preprocess.rna_initial_adata_object
+		]) #!StringCoercion
+
+		Array[String] atac_preprocessing_output_file_paths = flatten([
 			preprocess.atac_initial_adata_object
 		]) #!StringCoercion
 
@@ -130,7 +136,7 @@ workflow sc_multiome_analysis {
 					cohort_id = project.asap_team_id,
 					project_sample_ids = preprocess.project_sample_ids,
 					preprocessed_adata_objects = preprocess.rna_initial_adata_object,
-					preprocessing_output_file_paths = preprocessing_output_file_paths,
+					preprocessing_output_file_paths = rna_preprocessing_output_file_paths,
 					pct_counts_mt_max = pct_counts_mt_max,
 					doublet_score_max = doublet_score_max,
 					total_counts_limits = total_counts_limits,
@@ -164,7 +170,7 @@ workflow sc_multiome_analysis {
 					cohort_id = project.asap_team_id,
 					project_sample_ids = preprocess.project_sample_ids,
 					preprocessed_adata_objects = preprocess.atac_initial_adata_object,
-					preprocessing_output_file_paths = preprocessing_output_file_paths,
+					preprocessing_output_file_paths = atac_preprocessing_output_file_paths,
 					allen_brain_mmc_precomputed_stats_h5 = allen_brain_mmc_precomputed_stats_h5,
 					n_top_genes = n_top_genes,
 					n_comps = n_comps,
@@ -197,7 +203,7 @@ workflow sc_multiome_analysis {
 				cohort_id = cohort_id,
 				project_sample_ids = flatten(preprocess.project_sample_ids),
 				preprocessed_adata_objects = flatten(preprocess.rna_initial_adata_object),
-				preprocessing_output_file_paths = flatten(preprocessing_output_file_paths),
+				preprocessing_output_file_paths = flatten(rna_preprocessing_output_file_paths),
 				pct_counts_mt_max = pct_counts_mt_max,
 				doublet_score_max = doublet_score_max,
 				total_counts_limits = total_counts_limits,
@@ -231,7 +237,7 @@ workflow sc_multiome_analysis {
 				cohort_id = cohort_id,
 				project_sample_ids = flatten(preprocess.project_sample_ids),
 				preprocessed_adata_objects = flatten(preprocess.atac_initial_adata_object),
-				preprocessing_output_file_paths = flatten(preprocessing_output_file_paths),
+				preprocessing_output_file_paths = flatten(atac_preprocessing_output_file_paths),
 				allen_brain_mmc_precomputed_stats_h5 = allen_brain_mmc_precomputed_stats_h5,
 				n_top_genes = n_top_genes,
 				n_comps = n_comps,

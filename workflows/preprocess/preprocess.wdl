@@ -452,6 +452,7 @@ task cellranger_arc_count {
 	runtime {
 		docker: "~{container_registry}/cellranger_arc:2.2.0"
 		cpu: threads
+		cpuPlatform: "Intel Cascade Lake"
 		memory: "~{mem_gb} GB"
 		disks: "local-disk ~{disk_size} HDD"
 		preemptible: 3
@@ -525,6 +526,7 @@ task atac_counts_to_adata {
 	runtime {
 		docker: "~{container_registry}/sc_multiome_tools:1.0.0"
 		cpu: 4
+		cpuPlatform: "Intel Cascade Lake"
 		memory: "32 GB"
 		disks: "local-disk ~{disk_size} HDD"
 		preemptible: 3
