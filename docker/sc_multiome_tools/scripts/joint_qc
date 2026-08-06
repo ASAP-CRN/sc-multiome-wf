@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import argparse
-import numpy as np
 import scanpy as sc
 import mudata as md
 import hdf5plugin
@@ -17,7 +16,8 @@ def intersect_and_build(
       - ATAC: {cohort}.merged_filtered.h5ad  (output of the ATAC `merge_and_qc` task)
 
     Barcodes are expected to match across modalities (ARC uses a shared GEX
-    barcode as the joint cell identifier)..
+    barcode as the joint cell identifier). If the ATAC side is keyed on the
+    atac_barcode, translate it to the gex_barcode before calling this.
     """
     n_rna = adata_rna.n_obs
     n_atac = adata_atac.n_obs
@@ -31,9 +31,6 @@ def intersect_and_build(
     print(f"Paired cells (intersection): {n_shared}  "
           f"({frac:.1%} of the smaller modality)")
 
-    # Fail loudly on barcode-key mismatch rather than silently producing an
-    # empty/degenerate MuData. The usual culprits are the '-1' gem-well suffix
-    # or one modality keyed on the ATAC barcode and the other on the GEX barcode.
     if n_shared == 0:
         raise ValueError(
             "Zero shared barcodes between RNA and ATAC. Barcode keys do not "
