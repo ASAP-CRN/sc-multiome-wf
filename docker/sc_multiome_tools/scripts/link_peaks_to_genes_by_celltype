@@ -1,0 +1,177 @@
+#!/usr/bin/env python3
+
+import argparse
+import numpy as np
+import pandas as pd
+import scipy.sparse as sp
+import mudata as md
+from scipy.stats import pearsonr
+import hdf5plugin
+
+
+def parse_peak_coords(var: pd.DataFrame):
+    """Derive chrom/start/end/mid for each peak (explicit columns or parsed index)."""
+    if {"chrom", "start", "end"}.issubset(var.columns):
+        coords = var[["chrom", "start", "end"]].copy()
+    else:
+        s = var.index.to_series().str.replace("-", ":", n=1, regex=False).str.split(":", expand=True)
+        coords = pd.DataFrame(
+            {"chrom": s[0].values, "start": s[1].astype(int).values, "end": s[2].astype(int).values},
+            index=var.index,
+        )
+    coords["mid"] = (coords["start"] + coords["end"]) // 2
+    return coords
+
+
+def load_gene_tss(tss_bed: str):
+    return pd.read_csv(tss_bed, sep="\t", header=None, names=["chrom", "tss", "gene_name"])
+
+
+def correlate_group(
+    rna, atac, peak_coords, tss, window, min_cells, corr_threshold, pval_threshold, group_label
+):
+    """Correlate expression vs accessibility of nearby peaks within a single cell group."""
+    rna_genes = pd.Index(rna.var_names)
+    X_rna = rna.X.tocsc() if sp.issparse(rna.X) else np.asarray(rna.X)
+    X_atac = atac.X.tocsc() if sp.issparse(atac.X) else np.asarray(atac.X)
+
+    records = []
+    tss = tss[tss["gene_name"].isin(rna_genes)]
+
+    for _, g in tss.iterrows():
+        gene = g["gene_name"]
+        near = peak_coords[
+            (peak_coords["chrom"] == g["chrom"])
+            & ((peak_coords["mid"] - g["tss"]).abs() <= window)
+        ]
+        if near.empty:
+            continue
+
+        gi = rna_genes.get_loc(gene)
+        expr = X_rna[:, gi]
+        expr = np.asarray(expr.todense()).ravel() if sp.issparse(expr) else np.asarray(expr).ravel()
+
+        for peak_name in near.index:
+            pi = atac.var_names.get_loc(peak_name)
+            acc = X_atac[:, pi]
+            acc = np.asarray(acc.todense()).ravel() if sp.issparse(acc) else np.asarray(acc).ravel()
+            if (acc > 0).sum() < min_cells:
+                continue
+            r, p = pearsonr(expr, acc)
+            if np.isnan(r):
+                continue
+            distance = int(near.loc[peak_name, "mid"] - g["tss"])
+            records.append((group_label, gene, peak_name, r, p, distance))
+
+    links = pd.DataFrame(
+        records, columns=["cell_type", "gene", "peak", "pearson_r", "pval", "distance_to_tss"]
+    )
+    if not links.empty:
+        links = links[
+            (links["pearson_r"].abs() >= corr_threshold) & (links["pval"] <= pval_threshold)
+        ]
+    print(f"[{group_label}] retained {len(links)} peak-gene links")
+    return links
+
+
+def link_by_celltype(
+    mdata, tss, celltype_key, window, min_cells, corr_threshold, pval_threshold, min_group_cells
+):
+    rna_all = mdata.mod["rna"][mdata.obs_names]
+    atac_all = mdata.mod["atac"][mdata.obs_names]
+    peak_coords = parse_peak_coords(atac_all.var)
+
+    labels = mdata.obs[celltype_key]
+    all_links = []
+    for ct in labels.dropna().unique():
+        mask = (labels == ct).values
+        if mask.sum() < min_group_cells:
+            print(f"[{ct}] skipped ({mask.sum()} cells < {min_group_cells})")
+            continue
+        rna_ct = rna_all[mask]
+        atac_ct = atac_all[mask]
+        all_links.append(
+            correlate_group(
+                rna_ct, atac_ct, peak_coords, tss, window, min_cells, corr_threshold, pval_threshold, ct
+            )
+        )
+
+    if all_links:
+        result = pd.concat(all_links, ignore_index=True)
+        result = result.sort_values(["cell_type", "pearson_r"], ascending=[True, False]).reset_index(drop=True)
+    else:
+        result = pd.DataFrame(
+            columns=["cell_type", "gene", "peak", "pearson_r", "pval", "distance_to_tss"]
+        )
+    print(f"Total cell-type-resolved links: {len(result)}")
+    return result
+
+
+def main(args):
+    mdata = md.read_h5mu(args.mudata_input)
+    tss = load_gene_tss(args.tss_bed)
+
+    links = link_by_celltype(
+        mdata, tss, args.celltype_key, args.window, args.min_cells,
+        args.corr_threshold, args.pval_threshold, args.min_group_cells
+    )
+
+    links.to_csv(args.links_output, index=False)
+    print(f"Wrote {args.links_output}")
+
+    mdata.uns["peak_gene_links_by_celltype"] = links
+    mdata.write(
+        filename=args.mudata_output,
+        compression="gzip"
+    )
+    print(f"Wrote {args.mudata_output}")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Cell-type-resolved peak-to-gene linkage (per-population correlation ARC does not provide)"
+    )
+    parser.add_argument(
+        "-a", "--mudata-input", type=str, required=True,
+        help="MuData (.h5mu) object with paired 'rna' and 'atac' and transferred cell_type labels",
+    )
+    parser.add_argument(
+        "-t", "--tss-bed", type=str, required=True,
+        help="Tab-separated gene TSS table: chrom, tss, gene_name (no header)",
+    )
+    parser.add_argument(
+        "-k", "--celltype-key", type=str, required=True,
+        help="Column in mdata.obs holding transferred cell type labels [cell_type]",
+    )
+    parser.add_argument(
+        "-w", "--window", type=int, required=True,
+        help="Distance in bp up/downstream of the TSS to search for peaks [500000]",
+    )
+    parser.add_argument(
+        "-c", "--min-cells", type=int, required=True,
+        help="Min cells in which a peak must be accessible to be tested [10]",
+    )
+    parser.add_argument(
+        "-r", "--corr-threshold", type=float, required=True,
+        help="Minimum absolute Pearson correlation to retain a link [0.1]",
+    )
+    parser.add_argument(
+        "-p", "--pval-threshold", type=float, required=True,
+        help="Maximum p-value to retain a link [0.05]",
+    )
+    parser.add_argument(
+        "-m", "--min-group-cells", type=int, required=True,
+        help="Minimum cells in a cell type to run linkage for that group [50]",
+    )
+    parser.add_argument(
+        "-o", "--mudata-output", type=str, required=True,
+        help="Output file name for saving the MuData object with links in uns",
+    )
+    parser.add_argument(
+        "-l", "--links-output", type=str, required=True,
+        help="Output CSV file name for the cell-type-resolved links table",
+    )
+
+    args = parser.parse_args()
+
+    main(args)

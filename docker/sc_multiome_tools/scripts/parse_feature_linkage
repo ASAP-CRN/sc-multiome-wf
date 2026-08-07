@@ -1,0 +1,124 @@
+#!/usr/bin/env python3
+
+import argparse
+import numpy as np
+import pandas as pd
+import mudata as md
+import hdf5plugin
+
+
+BEDPE_COLUMNS = [
+    "chrom1", "start1", "end1",
+    "chrom2", "start2", "end2",
+    "name", "score", "strand1", "strand2",
+    "significance", "distance", "linkage_type",
+]
+
+
+def parse_bedpe(bedpe_path: str, keep_peak_gene_only: bool):
+    """
+    Read Cell Ranger ARC's feature_linkage.bedpe. Each row is a linkage between
+    two genomic loci; the 'name' field holds a <feature1><feature2> pair, 'score'
+    is the linkage correlation (-1..1), 'significance' the linkage significance,
+    'distance' the bp between the two features, and 'linkage_type' is one of
+    peak-gene, peak-peak, gene-gene.
+    """
+    print(f"Reading feature linkage from {bedpe_path}")
+    links = pd.read_csv(bedpe_path, sep="\t", header=None, names=BEDPE_COLUMNS)
+    print(f"Total linkages: {len(links)}")
+
+    # Split the <name1><name2> pair into two columns
+    names = links["name"].str.strip("<>").str.split("><", expand=True)
+    links["feature1"] = names[0]
+    links["feature2"] = names[1]
+
+    if keep_peak_gene_only:
+        links = links[links["linkage_type"] == "peak-gene"].reset_index(drop=True)
+        print(f"Peak-gene linkages: {len(links)}")
+
+    return links
+
+
+def filter_links(links: pd.DataFrame, corr_threshold: float, significance_threshold: float):
+    filtered = links[
+        (links["score"].abs() >= corr_threshold)
+        & (links["significance"] >= significance_threshold)
+    ].copy()
+    filtered = filtered.sort_values("score", ascending=False).reset_index(drop=True)
+    print(f"Retained {len(filtered)} linkages after filtering")
+    return filtered
+
+
+def main(args):
+    mdata = md.read_h5mu(args.mudata_input)
+
+    links = parse_bedpe(args.bedpe_input, args.peak_gene_only)
+    links = filter_links(links, args.corr_threshold, args.significance_threshold)
+
+    links.to_csv(args.links_output, index=False)
+    print(f"Wrote {args.links_output}")
+
+    mdata.uns["feature_linkage"] = links
+    mdata.write(
+        filename=args.mudata_output,
+        compression="gzip"
+    )
+    print(f"Wrote {args.mudata_output}")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Parse Cell Ranger ARC feature_linkage.bedpe into the paired MuData"
+    )
+    parser.add_argument(
+        "-a",
+        "--mudata-input",
+        type=str,
+        required=True,
+        help="MuData (.h5mu) object with paired 'rna' and 'atac' modalities",
+    )
+    parser.add_argument(
+        "-e",
+        "--bedpe-input",
+        type=str,
+        required=True,
+        help="Cell Ranger ARC feature_linkage.bedpe file (outs/analysis/feature_linkage)",
+    )
+    parser.add_argument(
+        "-g",
+        "--peak-gene-only",
+        action="store_true",
+        help="Keep only peak-gene linkages (drop peak-peak and gene-gene)",
+    )
+    parser.add_argument(
+        "-r",
+        "--corr-threshold",
+        type=float,
+        required=True,
+        help="Minimum absolute linkage correlation to retain [0.1]",
+    )
+    parser.add_argument(
+        "-s",
+        "--significance-threshold",
+        type=float,
+        required=True,
+        help="Minimum linkage significance to retain [0.0]",
+    )
+    parser.add_argument(
+        "-o",
+        "--mudata-output",
+        type=str,
+        required=True,
+        help="Output file name for saving the MuData object with linkage in uns",
+    )
+    parser.add_argument(
+        "-l",
+        "--links-output",
+        type=str,
+        required=True,
+        help="Output CSV file name for the parsed linkage table",
+    )
+
+    args = parser.parse_args()
+
+    main(args)
