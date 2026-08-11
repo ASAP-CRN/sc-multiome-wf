@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
+import os
 import argparse
-import numpy as np
 import pandas as pd
 import mudata as md
 import hdf5plugin
@@ -15,50 +15,92 @@ BEDPE_COLUMNS = [
 ]
 
 
-def parse_bedpe(bedpe_path: str, keep_peak_gene_only: bool):
-    """
-    Read Cell Ranger ARC's feature_linkage.bedpe. Each row is a linkage between
-    two genomic loci; the 'name' field holds a <feature1><feature2> pair, 'score'
-    is the linkage correlation (-1..1), 'significance' the linkage significance,
-    'distance' the bp between the two features, and 'linkage_type' is one of
-    peak-gene, peak-peak, gene-gene.
-    """
-    print(f"Reading feature linkage from {bedpe_path}")
-    links = pd.read_csv(bedpe_path, sep="\t", header=None, names=BEDPE_COLUMNS)
-    print(f"Total linkages: {len(links)}")
+def sample_id_from_filename(path: str):
+    base = os.path.basename(path)
+    base = base.replace(".feature_linkage.bedpe", "")
+    # base is now '{dataset_id}.{sample_id}'; take the trailing sample id
+    parts = base.split(".")
+    return parts[-1]
 
-    # Split the <name1><name2> pair into two columns
+
+def parse_one_bedpe(bedpe_path: str, sample_id: str, keep_peak_gene_only: bool):
+    """Read one sample's Cell Ranger ARC feature_linkage.bedpe and stamp it with
+    its sample id. Each row links two loci; 'name' holds a <feature1><feature2>
+    pair, 'score' is the linkage correlation, 'significance' the significance,
+    'distance' the bp between features, 'linkage_type' one of peak-gene /
+    peak-peak / gene-gene.
+    """
+    links = pd.read_csv(bedpe_path, sep="\t", header=None, names=BEDPE_COLUMNS)
+
     names = links["name"].str.strip("<>").str.split("><", expand=True)
     links["feature1"] = names[0]
     links["feature2"] = names[1]
+    links["sample_id"] = sample_id
 
     if keep_peak_gene_only:
-        links = links[links["linkage_type"] == "peak-gene"].reset_index(drop=True)
-        print(f"Peak-gene linkages: {len(links)}")
+        links = links[links["linkage_type"] == "peak-gene"]
 
-    return links
+    return links.reset_index(drop=True)
 
 
-def filter_links(links: pd.DataFrame, corr_threshold: float, significance_threshold: float):
-    filtered = links[
+def stack_linkages(
+    mdata: md.MuData, bedpe_paths, sample_key: str, corr_threshold: float,
+    significance_threshold: float, keep_peak_gene_only: bool
+):
+    """Stack per-sample BEDPEs into one long, sample-stamped table.
+
+    Peaks are called per sample (per-sample ARC peak calls), so peak names are
+    NOT comparable across samples and we deliberately do not collapse to a
+    cross-sample consensus.
+    """
+    obs_samples = set(mdata.obs[sample_key].astype(str).unique())
+    print(f"Sample IDs in merged object ({sample_key}): {sorted(obs_samples)}")
+
+    frames = []
+    seen = set()
+    for path in bedpe_paths:
+        sid = sample_id_from_filename(path)
+        if sid not in obs_samples:
+            raise ValueError(
+                f"BEDPE '{os.path.basename(path)}' resolves to sample_id "
+                f"'{sid}', which is not present in mdata.obs['{sample_key}']. "
+                f"Check the filename convention or the array of BEDPEs. "
+                f"Known samples: {sorted(obs_samples)}."
+            )
+        seen.add(sid)
+        df = parse_one_bedpe(path, sid, keep_peak_gene_only)
+        print(f"  {sid}: {len(df)} linkages")
+        frames.append(df)
+
+    missing = obs_samples - seen
+    if missing:
+        print(f"WARNING: no BEDPE provided for samples present in obs: {sorted(missing)}")
+
+    links = pd.concat(frames, ignore_index=True)
+
+    # Light per-row score/significance filter only (NOT a cross-sample filter)
+    links = links[
         (links["score"].abs() >= corr_threshold)
         & (links["significance"] >= significance_threshold)
-    ].copy()
-    filtered = filtered.sort_values("score", ascending=False).reset_index(drop=True)
-    print(f"Retained {len(filtered)} linkages after filtering")
-    return filtered
+    ].reset_index(drop=True)
+
+    print(f"Total stacked linkages after filtering: {len(links)} "
+          f"across {links['sample_id'].nunique()} samples")
+    return links
 
 
 def main(args):
     mdata = md.read_h5mu(args.mudata_input)
 
-    links = parse_bedpe(args.bedpe_input, args.peak_gene_only)
-    links = filter_links(links, args.corr_threshold, args.significance_threshold)
+    links = stack_linkages(
+        mdata, args.bedpe_inputs, args.sample_key, args.corr_threshold,
+        args.significance_threshold, args.peak_gene_only
+    )
 
     links.to_csv(args.links_output, index=False)
     print(f"Wrote {args.links_output}")
 
-    mdata.uns["feature_linkage"] = links
+    mdata.uns["feature_linkage_per_sample"] = links
     mdata.write(
         filename=args.mudata_output,
         compression="gzip"
@@ -68,21 +110,29 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Parse Cell Ranger ARC feature_linkage.bedpe into the paired MuData"
+        description="Stack per-sample Cell Ranger ARC feature_linkage.bedpe files into the merged Multiome MuData"
     )
     parser.add_argument(
         "-a",
         "--mudata-input",
         type=str,
         required=True,
-        help="MuData (.h5mu) object with paired 'rna' and 'atac' modalities",
+        help="Merged MuData (.h5mu) object with paired 'rna' and 'atac' modalities",
     )
     parser.add_argument(
         "-e",
-        "--bedpe-input",
+        "--bedpe-inputs",
         type=str,
+        nargs="+",
         required=True,
-        help="Cell Ranger ARC feature_linkage.bedpe file (outs/analysis/feature_linkage)",
+        help="Per-sample feature_linkage.bedpe files (one per sample)",
+    )
+    parser.add_argument(
+        "-k",
+        "--sample-key",
+        type=str,
+        default="sample",
+        help="Column in mdata.obs holding the sample id [sample]",
     )
     parser.add_argument(
         "-g",
@@ -116,7 +166,7 @@ if __name__ == "__main__":
         "--links-output",
         type=str,
         required=True,
-        help="Output CSV file name for the parsed linkage table",
+        help="Output CSV file name for the stacked per-sample linkage table",
     )
 
     args = parser.parse_args()

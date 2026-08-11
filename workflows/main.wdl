@@ -65,6 +65,11 @@ workflow sc_multiome_analysis {
 		Int multivi_n_hidden = 128
 		Int multivi_batch_size = 128
 
+		# Multiome - Cohort analysis
+		Boolean peak_gene_only = true
+		Float min_linkage_corr = 0.1
+		Float min_linkage_sig = 0.0
+
 		# Cohort analysis
 		Boolean run_cross_team_cohort_analysis = false
 		String cohort_raw_data_bucket
@@ -121,7 +126,8 @@ workflow sc_multiome_analysis {
 			preprocess.atac_fragments_tsv_gz_tbi,
 			preprocess.atac_peaks_bed,
 			preprocess.atac_cut_sites_bigwig,
-			preprocess.atac_peak_annotation_tsv
+			preprocess.atac_peak_annotation_tsv,
+			preprocess.feature_linkage_bedpe
 		]) #!StringCoercion
 
 		Array[String] rna_preprocessing_output_file_paths = flatten([
@@ -208,6 +214,7 @@ workflow sc_multiome_analysis {
 					cohort_id = project.asap_team_id,
 					project_sample_ids = preprocess.project_sample_ids,
 					preprocessing_output_file_paths = multiome_preprocessing_output_file_paths,
+					cellranger_arc_feature_linkage_bedpe = preprocess.feature_linkage_bedpe,
 					filtered_rna_adata_object = rna_project_cohort_analysis.filtered_adata_object,
 					filtered_atac_adata_object = atac_project_cohort_analysis.merged_adata_object,
 					min_overlap_frac = min_overlap_frac,
@@ -216,6 +223,9 @@ workflow sc_multiome_analysis {
 					multivi_max_epochs = multivi_max_epochs,
 					multivi_n_hidden = multivi_n_hidden,
 					multivi_batch_size = multivi_batch_size,
+					peak_gene_only = peak_gene_only,
+					min_linkage_corr = min_linkage_corr,
+					min_linkage_sig = min_linkage_sig,
 					workflow_name = workflow_name,
 					workflow_version = workflow_version,
 					workflow_release = workflow_release,
@@ -300,6 +310,7 @@ workflow sc_multiome_analysis {
 				cohort_id = cohort_id,
 				project_sample_ids = flatten(preprocess.project_sample_ids),
 				preprocessing_output_file_paths = flatten(multiome_preprocessing_output_file_paths),
+				cellranger_arc_feature_linkage_bedpe = flatten(preprocess.feature_linkage_bedpe),
 				filtered_rna_adata_object = rna_cross_team_cohort_analysis.filtered_adata_object,
 				filtered_atac_adata_object = atac_cross_team_cohort_analysis.merged_adata_object,
 				min_overlap_frac = min_overlap_frac,
@@ -308,6 +319,9 @@ workflow sc_multiome_analysis {
 				multivi_max_epochs = multivi_max_epochs,
 				multivi_n_hidden = multivi_n_hidden,
 				multivi_batch_size = multivi_batch_size,
+				peak_gene_only = peak_gene_only,
+				min_linkage_corr = min_linkage_corr,
+				min_linkage_sig = min_linkage_sig,
 				workflow_name = workflow_name,
 				workflow_version = workflow_version,
 				workflow_release = workflow_release,
@@ -342,6 +356,7 @@ workflow sc_multiome_analysis {
 		Array[Array[File]] cellranger_arc_atac_peaks_bed = preprocess.atac_peaks_bed
 		Array[Array[File]] cellranger_arc_atac_cut_sites_bigwig = preprocess.atac_cut_sites_bigwig
 		Array[Array[File]] cellranger_arc_atac_peak_annotation_tsv = preprocess.atac_peak_annotation_tsv
+		Array[Array[File]] cellranger_arc_feature_linkage_bedpe = preprocess.feature_linkage_bedpe
 
 		# Preprocess
 		Array[Array[File]] cellbender_report_html = preprocess.report_html
@@ -603,6 +618,9 @@ workflow sc_multiome_analysis {
 		multivi_max_epochs: {help: "The maximum number of full passes through the training data during MultiVI model training. If the model converges early, training will halt before this limit is reached. [300]"}
 		multivi_n_hidden: {help: "Number of nodes per hidden layer for MultiVI (i.e., the number of neurons per fully-connected layer between the input features and the latent space). [128]"}
 		multivi_batch_size: {help: "Training batch size for MultiVI. Controls how many cells are processed per training step. [128]"}
+		peak_gene_only: {help: "Keep only peak-gene linages (drop peak-peak and gene-gene). [true]"}
+		min_linkage_corr: {help: "Minimum absolute feature linkage correlation to retain. [0.1]"}
+		min_linkage_sig: {help: "Minimum feature linkage significance to retain. [0.0]"}
 		run_cross_team_cohort_analysis: {help: "Whether to run downstream harmonization steps on all samples across projects. If set to false, only preprocessing steps (cellranger and generating the initial adata object(s)) will run for samples. [false]"}
 		cohort_raw_data_bucket: {help: "Bucket to upload cross-team cohort intermediate files to."}
 		cohort_staging_data_buckets: {help: "Set of buckets to stage cross-team cohort analysis outputs in."}

@@ -87,6 +87,7 @@ workflow preprocess {
 		String cellranger_arc_atac_peaks_bed = "~{cellranger_arc_raw_data_path}/~{dataset_sample_id}.atac_peaks.bed"
 		String cellranger_arc_atac_cut_sites_bigwig = "~{cellranger_arc_raw_data_path}/~{dataset_sample_id}.atac_cut_sites.bigwig"
 		String cellranger_arc_atac_peak_annotation_tsv = "~{cellranger_arc_raw_data_path}/~{dataset_sample_id}.atac_peak_annotation.tsv"
+		String cellranger_arc_feature_linkage_bedpe = "~{cellranger_arc_raw_data_path}/~{dataset_sample_id}.feature_linkage.bedpe"
 
 		if (cellranger_arc_count_complete == "false") {
 			call cellranger_arc_count {
@@ -121,6 +122,7 @@ workflow preprocess {
 		File atac_peaks_bed_output = select_first([cellranger_arc_count.atac_peaks_bed, cellranger_arc_atac_peaks_bed]) #!FileCoercion
 		File atac_cut_sites_bigwig_output = select_first([cellranger_arc_count.atac_cut_sites_bigwig, cellranger_arc_atac_cut_sites_bigwig]) #!FileCoercion
 		File atac_peak_annotation_tsv_output = select_first([cellranger_arc_count.atac_peak_annotation_tsv, cellranger_arc_atac_peak_annotation_tsv]) #!FileCoercion
+		File feature_linkage_bedpe_output = select_first([cellranger_arc_count.feature_linkage_bedpe, cellranger_arc_feature_linkage_bedpe]) #!FileCoercion
 	
 		String cellbender_report_html = "~{rna_cellbender_raw_data_path}/~{dataset_sample_id}.cellbender_report.html"
 		String cellbender_removed_background_counts = "~{rna_cellbender_raw_data_path}/~{dataset_sample_id}.cellbender.h5"
@@ -219,6 +221,7 @@ workflow preprocess {
 		Array[File] atac_peaks_bed = atac_peaks_bed_output #!FileCoercion
 		Array[File] atac_cut_sites_bigwig = atac_cut_sites_bigwig_output #!FileCoercion
 		Array[File] atac_peak_annotation_tsv = atac_peak_annotation_tsv_output #!FileCoercion
+		Array[File] feature_linkage_bedpe = feature_linkage_bedpe_output #!FileCoercion
 
 		# RNA - Remove technical artifacts with Cellbender
 		Array[File] report_html = report_html_output
@@ -396,7 +399,7 @@ task cellranger_arc_count {
 		cp -r ~{sample_id}/outs multiome_outputs
 		tar -czvf "~{dataset_sample_id}.cellranger_arc_multiome_outputs.tar.gz" multiome_outputs
 
-		# Rename outputs to include sample ID
+		# Rename outputs to include dataset and sample ID
 		mv ~{sample_id}/outs/raw_feature_bc_matrix.h5 ~{dataset_sample_id}.raw_feature_bc_matrix.h5
 		mv ~{sample_id}/outs/filtered_feature_bc_matrix.h5 ~{dataset_sample_id}.filtered_feature_bc_matrix.h5
 		mv ~{sample_id}/outs/molecule_info.h5 ~{dataset_sample_id}.molecule_info.h5
@@ -411,6 +414,7 @@ task cellranger_arc_count {
 		mv ~{sample_id}/outs/atac_peaks.bed ~{dataset_sample_id}.atac_peaks.bed
 		mv ~{sample_id}/outs/atac_cut_sites.bigwig ~{dataset_sample_id}.atac_cut_sites.bigwig
 		mv ~{sample_id}/outs/atac_peak_annotation.tsv ~{dataset_sample_id}.atac_peak_annotation.tsv
+		mv ~{sample_id}/outs/analysis/feature_linkage/feature_linkage.bedpe ~{dataset_sample_id}.feature_linkage.bedpe
 
 		upload_outputs \
 			-b ~{billing_project} \
@@ -430,7 +434,8 @@ task cellranger_arc_count {
 			-o "~{dataset_sample_id}.atac_fragments.tsv.gz.tbi" \
 			-o "~{dataset_sample_id}.atac_peaks.bed" \
 			-o "~{dataset_sample_id}.atac_cut_sites.bigwig" \
-			-o "~{dataset_sample_id}.atac_peak_annotation.tsv"
+			-o "~{dataset_sample_id}.atac_peak_annotation.tsv" \
+			-o "~{dataset_sample_id}.feature_linkage.bedpe"
 	>>>
 
 	output {
@@ -449,6 +454,7 @@ task cellranger_arc_count {
 		String atac_peaks_bed = "~{raw_data_path}/~{dataset_sample_id}.atac_peaks.bed"
 		String atac_cut_sites_bigwig = "~{raw_data_path}/~{dataset_sample_id}.atac_cut_sites.bigwig"
 		String atac_peak_annotation_tsv = "~{raw_data_path}/~{dataset_sample_id}.atac_peak_annotation.tsv"
+		String feature_linkage_bedpe = "~{raw_data_path}/~{dataset_sample_id}.feature_linkage.bedpe"
 	}
 
 	runtime {
