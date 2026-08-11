@@ -59,6 +59,12 @@ workflow sc_multiome_analysis {
 		# Multiome - QC
 		Float min_overlap_frac
 
+		# Multiome - Sample integration
+		String multivi_latent_key = "X_multiVI"
+		Int multivi_max_epochs = 300
+		Int multivi_n_hidden = 128
+		Int multivi_batch_size = 128
+
 		# Cohort analysis
 		Boolean run_cross_team_cohort_analysis = false
 		String cohort_raw_data_bucket
@@ -205,6 +211,11 @@ workflow sc_multiome_analysis {
 					filtered_rna_adata_object = rna_project_cohort_analysis.filtered_adata_object,
 					filtered_atac_adata_object = atac_project_cohort_analysis.merged_adata_object,
 					min_overlap_frac = min_overlap_frac,
+					batch_key = batch_key,
+					multivi_latent_key = multivi_latent_key,
+					multivi_max_epochs = multivi_max_epochs,
+					multivi_n_hidden = multivi_n_hidden,
+					multivi_batch_size = multivi_batch_size,
 					workflow_name = workflow_name,
 					workflow_version = workflow_version,
 					workflow_release = workflow_release,
@@ -292,6 +303,11 @@ workflow sc_multiome_analysis {
 				filtered_rna_adata_object = rna_cross_team_cohort_analysis.filtered_adata_object,
 				filtered_atac_adata_object = atac_cross_team_cohort_analysis.merged_adata_object,
 				min_overlap_frac = min_overlap_frac,
+				batch_key = batch_key,
+				multivi_latent_key = multivi_latent_key,
+				multivi_max_epochs = multivi_max_epochs,
+				multivi_n_hidden = multivi_n_hidden,
+				multivi_batch_size = multivi_batch_size,
 				workflow_name = workflow_name,
 				workflow_version = workflow_version,
 				workflow_release = workflow_release,
@@ -578,11 +594,15 @@ workflow sc_multiome_analysis {
 		rna_features: {help: "RNA features to produce umap plots for. ['n_genes_by_counts', 'total_counts', 'pct_counts_mt', 'pct_counts_rb', 'doublet_score', 'S_score', 'G2M_score']"}
 		peakvi_latent_key: {help: "Latent key to save the peakVI latent to. ['X_peakVI']"}
 		peakvi_max_epochs: {help: "The maximum number of full passes through the training data during PeakVI model training. If the model converges early, training will halt before this limit is reached. [300]"}
-		peakvi_n_hidden: {help: "Number of nodes per hidden layer (i.e., the number of neurons per fully-connected layer between the input features and the latent space). [128]"}
+		peakvi_n_hidden: {help: "Number of nodes per hidden layer for PeakVI (i.e., the number of neurons per fully-connected layer between the input features and the latent space). [128]"}
 		peakvi_batch_size: {help: "Training batch size for PeakVI. Controls how many cells are processed per training step. [128]"}
 		atac_groups: {help: "ATAC groups to produce umap plots for. ['sample', 'batch', 'team', 'dataset', 'batch_id', 'leiden']"}
 		atac_features: {help: "ATAC features to produce umap plots for. ['n_fragment', 'tsse', 'frac_dup', 'frac_mito', 'doublet_score', 'doublet_probability']"}
 		min_overlap_frac: {help: "Minimum fraction of the smaller modality that must be shared; below this the run fails as a likely barcode-key mismatch. [0.5]"}
+		multivi_latent_key: {help: "Latent key to save the MultiVI latent to. ['X_multiVI']"}
+		multivi_max_epochs: {help: "The maximum number of full passes through the training data during MultiVI model training. If the model converges early, training will halt before this limit is reached. [300]"}
+		multivi_n_hidden: {help: "Number of nodes per hidden layer for MultiVI (i.e., the number of neurons per fully-connected layer between the input features and the latent space). [128]"}
+		multivi_batch_size: {help: "Training batch size for MultiVI. Controls how many cells are processed per training step. [128]"}
 		run_cross_team_cohort_analysis: {help: "Whether to run downstream harmonization steps on all samples across projects. If set to false, only preprocessing steps (cellranger and generating the initial adata object(s)) will run for samples. [false]"}
 		cohort_raw_data_bucket: {help: "Bucket to upload cross-team cohort intermediate files to."}
 		cohort_staging_data_buckets: {help: "Set of buckets to stage cross-team cohort analysis outputs in."}

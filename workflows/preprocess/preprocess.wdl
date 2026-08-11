@@ -64,6 +64,7 @@ workflow preprocess {
 	scatter (index in range(length(samples))) {
 		Sample sample = samples[index]
 
+		String dataset_sample_id = "~{dataset_id}.~{sample.sample_id}"
 		Array[String] project_sample_id = [team_id, sample.sample_id, dataset_doi_url]
 
 		String cellranger_arc_count_complete = check_output_files_exist.sample_preprocessing_complete[index][0]
@@ -71,26 +72,26 @@ workflow preprocess {
 		String rna_initial_adata_object_complete = check_output_files_exist.sample_preprocessing_complete[index][2]
 		String atac_initial_adata_object_complete = check_output_files_exist.sample_preprocessing_complete[index][3]
 
-		String cellranger_arc_multiome_outputs_tar_gz = "~{cellranger_arc_raw_data_path}/~{dataset_id}.~{sample.sample_id}.cellranger_arc_multiome_outputs.tar.gz"
-		String cellranger_arc_raw_counts = "~{cellranger_arc_raw_data_path}/~{dataset_id}.~{sample.sample_id}.raw_feature_bc_matrix.h5"
-		String cellranger_arc_filtered_counts = "~{cellranger_arc_raw_data_path}/~{dataset_id}.~{sample.sample_id}.filtered_feature_bc_matrix.h5"
-		String cellranger_arc_molecule_info = "~{cellranger_arc_raw_data_path}/~{dataset_id}.~{sample.sample_id}.molecule_info.h5"
-		String cellranger_arc_metrics_summary_csv = "~{cellranger_arc_raw_data_path}/~{dataset_id}.~{sample.sample_id}.metrics_summary.csv"
-		String cellranger_arc_per_barcode_metrics_summary_csv = "~{cellranger_arc_raw_data_path}/~{dataset_id}.~{sample.sample_id}.per_barcode_metrics.csv"
-		String cellranger_arc_gex_possorted_bam = "~{cellranger_arc_raw_data_path}/~{dataset_id}.~{sample.sample_id}.gex_possorted_bam.bam"
-		String cellranger_arc_gex_possorted_bam_index = "~{cellranger_arc_raw_data_path}/~{dataset_id}.~{sample.sample_id}.gex_possorted_bam.bam.bai"
-		String cellranger_arc_atac_possorted_bam = "~{cellranger_arc_raw_data_path}/~{dataset_id}.~{sample.sample_id}.atac_possorted_bam.bam"
-		String cellranger_arc_atac_possorted_bam_index = "~{cellranger_arc_raw_data_path}/~{dataset_id}.~{sample.sample_id}.atac_possorted_bam.bam.bai"
-		String cellranger_arc_atac_fragments_tsv_gz = "~{cellranger_arc_raw_data_path}/~{dataset_id}.~{sample.sample_id}.atac_fragments.tsv.gz"
-		String cellranger_arc_atac_fragments_tsv_gz_tbi = "~{cellranger_arc_raw_data_path}/~{dataset_id}.~{sample.sample_id}.atac_fragments.tsv.gz.tbi"
-		String cellranger_arc_atac_peaks_bed = "~{cellranger_arc_raw_data_path}/~{dataset_id}.~{sample.sample_id}.atac_peaks.bed"
-		String cellranger_arc_atac_cut_sites_bigwig = "~{cellranger_arc_raw_data_path}/~{dataset_id}.~{sample.sample_id}.atac_cut_sites.bigwig"
-		String cellranger_arc_atac_peak_annotation_tsv = "~{cellranger_arc_raw_data_path}/~{dataset_id}.~{sample.sample_id}.atac_peak_annotation.tsv"
+		String cellranger_arc_multiome_outputs_tar_gz = "~{cellranger_arc_raw_data_path}/~{dataset_sample_id}.cellranger_arc_multiome_outputs.tar.gz"
+		String cellranger_arc_raw_counts = "~{cellranger_arc_raw_data_path}/~{dataset_sample_id}.raw_feature_bc_matrix.h5"
+		String cellranger_arc_filtered_counts = "~{cellranger_arc_raw_data_path}/~{dataset_sample_id}.filtered_feature_bc_matrix.h5"
+		String cellranger_arc_molecule_info = "~{cellranger_arc_raw_data_path}/~{dataset_sample_id}.molecule_info.h5"
+		String cellranger_arc_metrics_summary_csv = "~{cellranger_arc_raw_data_path}/~{dataset_sample_id}.metrics_summary.csv"
+		String cellranger_arc_per_barcode_metrics_summary_csv = "~{cellranger_arc_raw_data_path}/~{dataset_sample_id}.per_barcode_metrics.csv"
+		String cellranger_arc_gex_possorted_bam = "~{cellranger_arc_raw_data_path}/~{dataset_sample_id}.gex_possorted_bam.bam"
+		String cellranger_arc_gex_possorted_bam_index = "~{cellranger_arc_raw_data_path}/~{dataset_sample_id}.gex_possorted_bam.bam.bai"
+		String cellranger_arc_atac_possorted_bam = "~{cellranger_arc_raw_data_path}/~{dataset_sample_id}.atac_possorted_bam.bam"
+		String cellranger_arc_atac_possorted_bam_index = "~{cellranger_arc_raw_data_path}/~{dataset_sample_id}.atac_possorted_bam.bam.bai"
+		String cellranger_arc_atac_fragments_tsv_gz = "~{cellranger_arc_raw_data_path}/~{dataset_sample_id}.atac_fragments.tsv.gz"
+		String cellranger_arc_atac_fragments_tsv_gz_tbi = "~{cellranger_arc_raw_data_path}/~{dataset_sample_id}.atac_fragments.tsv.gz.tbi"
+		String cellranger_arc_atac_peaks_bed = "~{cellranger_arc_raw_data_path}/~{dataset_sample_id}.atac_peaks.bed"
+		String cellranger_arc_atac_cut_sites_bigwig = "~{cellranger_arc_raw_data_path}/~{dataset_sample_id}.atac_cut_sites.bigwig"
+		String cellranger_arc_atac_peak_annotation_tsv = "~{cellranger_arc_raw_data_path}/~{dataset_sample_id}.atac_peak_annotation.tsv"
 
 		if (cellranger_arc_count_complete == "false") {
 			call cellranger_arc_count {
 				input:
-					dataset_id = dataset_id,
+					dataset_sample_id = dataset_sample_id,
 					sample_id = sample.sample_id,
 					fastq_R1s = sample.fastq_R1s,
 					fastq_R2s = sample.fastq_R2s,
@@ -121,20 +122,19 @@ workflow preprocess {
 		File atac_cut_sites_bigwig_output = select_first([cellranger_arc_count.atac_cut_sites_bigwig, cellranger_arc_atac_cut_sites_bigwig]) #!FileCoercion
 		File atac_peak_annotation_tsv_output = select_first([cellranger_arc_count.atac_peak_annotation_tsv, cellranger_arc_atac_peak_annotation_tsv]) #!FileCoercion
 	
-		String cellbender_report_html = "~{rna_cellbender_raw_data_path}/~{dataset_id}.~{sample.sample_id}.cellbender_report.html"
-		String cellbender_removed_background_counts = "~{rna_cellbender_raw_data_path}/~{dataset_id}.~{sample.sample_id}.cellbender.h5"
-		String cellbender_filtered_removed_background_counts = "~{rna_cellbender_raw_data_path}/~{dataset_id}.~{sample.sample_id}.cellbender_filtered.h5"
-		String cellbender_cell_barcodes_csv = "~{rna_cellbender_raw_data_path}/~{dataset_id}.~{sample.sample_id}.cellbender_cell_barcodes.csv"
-		String cellbender_graph_pdf = "~{rna_cellbender_raw_data_path}/~{dataset_id}.~{sample.sample_id}.cellbender.pdf"
-		String cellbender_log = "~{rna_cellbender_raw_data_path}/~{dataset_id}.~{sample.sample_id}.cellbender.log"
-		String cellbender_metrics_csv = "~{rna_cellbender_raw_data_path}/~{dataset_id}.~{sample.sample_id}.cellbender_metrics.csv"
-		String cellbender_posterior_probability = "~{rna_cellbender_raw_data_path}/~{dataset_id}.~{sample.sample_id}.cellbend_posterior.h5"
+		String cellbender_report_html = "~{rna_cellbender_raw_data_path}/~{dataset_sample_id}.cellbender_report.html"
+		String cellbender_removed_background_counts = "~{rna_cellbender_raw_data_path}/~{dataset_sample_id}.cellbender.h5"
+		String cellbender_filtered_removed_background_counts = "~{rna_cellbender_raw_data_path}/~{dataset_sample_id}.cellbender_filtered.h5"
+		String cellbender_cell_barcodes_csv = "~{rna_cellbender_raw_data_path}/~{dataset_sample_id}.cellbender_cell_barcodes.csv"
+		String cellbender_graph_pdf = "~{rna_cellbender_raw_data_path}/~{dataset_sample_id}.cellbender.pdf"
+		String cellbender_log = "~{rna_cellbender_raw_data_path}/~{dataset_sample_id}.cellbender.log"
+		String cellbender_metrics_csv = "~{rna_cellbender_raw_data_path}/~{dataset_sample_id}.cellbender_metrics.csv"
+		String cellbender_posterior_probability = "~{rna_cellbender_raw_data_path}/~{dataset_sample_id}.cellbend_posterior.h5"
 
 		if (rna_cellbender_remove_background_complete == "false") {
 			call ScRnaPreprocess.remove_technical_artifacts as rna_remove_technical_artifacts {
 				input:
-					dataset_id = dataset_id,
-					sample_id = sample.sample_id,
+					dataset_sample_id = dataset_sample_id,
 					raw_counts = raw_counts_output,
 					cellbender_fpr = cellbender_fpr,
 					raw_data_path = rna_cellbender_raw_data_path,
@@ -154,11 +154,12 @@ workflow preprocess {
 		File metrics_csv_output = select_first([rna_remove_technical_artifacts.metrics_csv, cellbender_metrics_csv]) #!FileCoercion
 		File posterior_probability_output = select_first([rna_remove_technical_artifacts.posterior_probability, cellbender_posterior_probability]) #!FileCoercion
 
-		String preprocessed_rna_adata_object = "~{rna_adata_raw_data_path}/~{dataset_id}.~{sample.sample_id}.cleaned_unfiltered.h5ad"
+		String preprocessed_rna_adata_object = "~{rna_adata_raw_data_path}/~{dataset_sample_id}.cleaned_unfiltered.h5ad"
 
 		if (rna_initial_adata_object_complete == "false") {
 			call ScRnaPreprocess.counts_to_adata as rna_counts_to_adata {
 				input:
+					dataset_sample_id = dataset_sample_id,
 					sample_id = sample.sample_id,
 					batch = select_first([sample.batch]),
 					sex = select_first([sample.sex]),
@@ -175,11 +176,12 @@ workflow preprocess {
 
 		File preprocessed_rna_adata_object_output = select_first([rna_counts_to_adata.initial_adata_object, preprocessed_rna_adata_object]) #!FileCoercion
 		
-		String preprocessed_atac_adata_object = "~{atac_adata_raw_data_path}/~{dataset_id}.~{sample.sample_id}.cleaned_unfiltered.h5ad"
+		String preprocessed_atac_adata_object = "~{atac_adata_raw_data_path}/~{dataset_sample_id}.cleaned_unfiltered.h5ad"
 
 		if (atac_initial_adata_object_complete == "false") {
 			call atac_counts_to_adata {
 				input:
+					dataset_sample_id = dataset_sample_id,
 					sample_id = sample.sample_id,
 					batch = select_first([sample.batch]),
 					sex = select_first([sample.sex]),
@@ -323,7 +325,7 @@ task check_output_files_exist {
 
 task cellranger_arc_count {
 	input {
-		String dataset_id
+		String dataset_sample_id
 		String sample_id
 
 		Array[File] fastq_R1s
@@ -392,61 +394,61 @@ task cellranger_arc_count {
 
 		# Save Cell Ranger ARC outs
 		cp -r ~{sample_id}/outs multiome_outputs
-		tar -czvf "~{dataset_id}.~{sample_id}.cellranger_arc_multiome_outputs.tar.gz" multiome_outputs
+		tar -czvf "~{dataset_sample_id}.cellranger_arc_multiome_outputs.tar.gz" multiome_outputs
 
 		# Rename outputs to include sample ID
-		mv ~{sample_id}/outs/raw_feature_bc_matrix.h5 ~{dataset_id}.~{sample_id}.raw_feature_bc_matrix.h5
-		mv ~{sample_id}/outs/filtered_feature_bc_matrix.h5 ~{dataset_id}.~{sample_id}.filtered_feature_bc_matrix.h5
-		mv ~{sample_id}/outs/molecule_info.h5 ~{dataset_id}.~{sample_id}.molecule_info.h5
-		mv ~{sample_id}/outs/summary.csv ~{dataset_id}.~{sample_id}.summary.csv
-		mv ~{sample_id}/outs/per_barcode_metrics.csv ~{dataset_id}.~{sample_id}.per_barcode_metrics.csv
-		mv ~{sample_id}/outs/gex_possorted_bam.bam ~{dataset_id}.~{sample_id}.gex_possorted_bam.bam
-		mv ~{sample_id}/outs/gex_possorted_bam.bam.bai ~{dataset_id}.~{sample_id}.gex_possorted_bam.bam.bai
-		mv ~{sample_id}/outs/atac_possorted_bam.bam ~{dataset_id}.~{sample_id}.atac_possorted_bam.bam
-		mv ~{sample_id}/outs/atac_possorted_bam.bam.bai ~{dataset_id}.~{sample_id}.atac_possorted_bam.bam.bai
-		mv ~{sample_id}/outs/atac_fragments.tsv.gz ~{dataset_id}.~{sample_id}.atac_fragments.tsv.gz
-		mv ~{sample_id}/outs/atac_fragments.tsv.gz.tbi ~{dataset_id}.~{sample_id}.atac_fragments.tsv.gz.tbi
-		mv ~{sample_id}/outs/atac_peaks.bed ~{dataset_id}.~{sample_id}.atac_peaks.bed
-		mv ~{sample_id}/outs/atac_cut_sites.bigwig ~{dataset_id}.~{sample_id}.atac_cut_sites.bigwig
-		mv ~{sample_id}/outs/atac_peak_annotation.tsv ~{dataset_id}.~{sample_id}.atac_peak_annotation.tsv
+		mv ~{sample_id}/outs/raw_feature_bc_matrix.h5 ~{dataset_sample_id}.raw_feature_bc_matrix.h5
+		mv ~{sample_id}/outs/filtered_feature_bc_matrix.h5 ~{dataset_sample_id}.filtered_feature_bc_matrix.h5
+		mv ~{sample_id}/outs/molecule_info.h5 ~{dataset_sample_id}.molecule_info.h5
+		mv ~{sample_id}/outs/summary.csv ~{dataset_sample_id}.summary.csv
+		mv ~{sample_id}/outs/per_barcode_metrics.csv ~{dataset_sample_id}.per_barcode_metrics.csv
+		mv ~{sample_id}/outs/gex_possorted_bam.bam ~{dataset_sample_id}.gex_possorted_bam.bam
+		mv ~{sample_id}/outs/gex_possorted_bam.bam.bai ~{dataset_sample_id}.gex_possorted_bam.bam.bai
+		mv ~{sample_id}/outs/atac_possorted_bam.bam ~{dataset_sample_id}.atac_possorted_bam.bam
+		mv ~{sample_id}/outs/atac_possorted_bam.bam.bai ~{dataset_sample_id}.atac_possorted_bam.bam.bai
+		mv ~{sample_id}/outs/atac_fragments.tsv.gz ~{dataset_sample_id}.atac_fragments.tsv.gz
+		mv ~{sample_id}/outs/atac_fragments.tsv.gz.tbi ~{dataset_sample_id}.atac_fragments.tsv.gz.tbi
+		mv ~{sample_id}/outs/atac_peaks.bed ~{dataset_sample_id}.atac_peaks.bed
+		mv ~{sample_id}/outs/atac_cut_sites.bigwig ~{dataset_sample_id}.atac_cut_sites.bigwig
+		mv ~{sample_id}/outs/atac_peak_annotation.tsv ~{dataset_sample_id}.atac_peak_annotation.tsv
 
 		upload_outputs \
 			-b ~{billing_project} \
 			-d ~{raw_data_path} \
 			-i ~{write_tsv(workflow_info)} \
-			-o "~{dataset_id}.~{sample_id}.cellranger_arc_multiome_outputs.tar.gz" \
-			-o "~{dataset_id}.~{sample_id}.raw_feature_bc_matrix.h5" \
-			-o "~{dataset_id}.~{sample_id}.filtered_feature_bc_matrix.h5" \
-			-o "~{dataset_id}.~{sample_id}.molecule_info.h5" \
-			-o "~{dataset_id}.~{sample_id}.summary.csv" \
-			-o "~{dataset_id}.~{sample_id}.per_barcode_metrics.csv" \
-			-o "~{dataset_id}.~{sample_id}.gex_possorted_bam.bam" \
-			-o "~{dataset_id}.~{sample_id}.gex_possorted_bam.bam.bai" \
-			-o "~{dataset_id}.~{sample_id}.atac_possorted_bam.bam" \
-			-o "~{dataset_id}.~{sample_id}.atac_possorted_bam.bam.bai" \
-			-o "~{dataset_id}.~{sample_id}.atac_fragments.tsv.gz" \
-			-o "~{dataset_id}.~{sample_id}.atac_fragments.tsv.gz.tbi" \
-			-o "~{dataset_id}.~{sample_id}.atac_peaks.bed" \
-			-o "~{dataset_id}.~{sample_id}.atac_cut_sites.bigwig" \
-			-o "~{dataset_id}.~{sample_id}.atac_peak_annotation.tsv"
+			-o "~{dataset_sample_id}.cellranger_arc_multiome_outputs.tar.gz" \
+			-o "~{dataset_sample_id}.raw_feature_bc_matrix.h5" \
+			-o "~{dataset_sample_id}.filtered_feature_bc_matrix.h5" \
+			-o "~{dataset_sample_id}.molecule_info.h5" \
+			-o "~{dataset_sample_id}.summary.csv" \
+			-o "~{dataset_sample_id}.per_barcode_metrics.csv" \
+			-o "~{dataset_sample_id}.gex_possorted_bam.bam" \
+			-o "~{dataset_sample_id}.gex_possorted_bam.bam.bai" \
+			-o "~{dataset_sample_id}.atac_possorted_bam.bam" \
+			-o "~{dataset_sample_id}.atac_possorted_bam.bam.bai" \
+			-o "~{dataset_sample_id}.atac_fragments.tsv.gz" \
+			-o "~{dataset_sample_id}.atac_fragments.tsv.gz.tbi" \
+			-o "~{dataset_sample_id}.atac_peaks.bed" \
+			-o "~{dataset_sample_id}.atac_cut_sites.bigwig" \
+			-o "~{dataset_sample_id}.atac_peak_annotation.tsv"
 	>>>
 
 	output {
-		String multiome_outputs_tar_gz = "~{raw_data_path}/~{dataset_id}.~{sample_id}.cellranger_arc_multiome_outputs.tar.gz"
-		String raw_counts = "~{raw_data_path}/~{dataset_id}.~{sample_id}.raw_feature_bc_matrix.h5"
-		String filtered_counts = "~{raw_data_path}/~{dataset_id}.~{sample_id}.filtered_feature_bc_matrix.h5"
-		String molecule_info = "~{raw_data_path}/~{dataset_id}.~{sample_id}.molecule_info.h5"
-		String metrics_summary_csv = "~{raw_data_path}/~{dataset_id}.~{sample_id}.summary.csv"
-		String per_barcode_metrics_summary_csv = "~{raw_data_path}/~{dataset_id}.~{sample_id}.per_barcode_metrics.csv"
-		String gex_possorted_bam = "~{raw_data_path}/~{dataset_id}.~{sample_id}.gex_possorted_bam.bam"
-		String gex_possorted_bam_index = "~{raw_data_path}/~{dataset_id}.~{sample_id}.gex_possorted_bam.bam.bai"
-		String atac_possorted_bam = "~{raw_data_path}/~{dataset_id}.~{sample_id}.atac_possorted_bam.bam"
-		String atac_possorted_bam_index = "~{raw_data_path}/~{dataset_id}.~{sample_id}.atac_possorted_bam.bam.bai"
-		String atac_fragments_tsv_gz = "~{raw_data_path}/~{dataset_id}.~{sample_id}.atac_fragments.tsv.gz"
-		String atac_fragments_tsv_gz_tbi = "~{raw_data_path}/~{dataset_id}.~{sample_id}.atac_fragments.tsv.gz.tbi"
-		String atac_peaks_bed = "~{raw_data_path}/~{dataset_id}.~{sample_id}.atac_peaks.bed"
-		String atac_cut_sites_bigwig = "~{raw_data_path}/~{dataset_id}.~{sample_id}.atac_cut_sites.bigwig"
-		String atac_peak_annotation_tsv = "~{raw_data_path}/~{dataset_id}.~{sample_id}.atac_peak_annotation.tsv"
+		String multiome_outputs_tar_gz = "~{raw_data_path}/~{dataset_sample_id}.cellranger_arc_multiome_outputs.tar.gz"
+		String raw_counts = "~{raw_data_path}/~{dataset_sample_id}.raw_feature_bc_matrix.h5"
+		String filtered_counts = "~{raw_data_path}/~{dataset_sample_id}.filtered_feature_bc_matrix.h5"
+		String molecule_info = "~{raw_data_path}/~{dataset_sample_id}.molecule_info.h5"
+		String metrics_summary_csv = "~{raw_data_path}/~{dataset_sample_id}.summary.csv"
+		String per_barcode_metrics_summary_csv = "~{raw_data_path}/~{dataset_sample_id}.per_barcode_metrics.csv"
+		String gex_possorted_bam = "~{raw_data_path}/~{dataset_sample_id}.gex_possorted_bam.bam"
+		String gex_possorted_bam_index = "~{raw_data_path}/~{dataset_sample_id}.gex_possorted_bam.bam.bai"
+		String atac_possorted_bam = "~{raw_data_path}/~{dataset_sample_id}.atac_possorted_bam.bam"
+		String atac_possorted_bam_index = "~{raw_data_path}/~{dataset_sample_id}.atac_possorted_bam.bam.bai"
+		String atac_fragments_tsv_gz = "~{raw_data_path}/~{dataset_sample_id}.atac_fragments.tsv.gz"
+		String atac_fragments_tsv_gz_tbi = "~{raw_data_path}/~{dataset_sample_id}.atac_fragments.tsv.gz.tbi"
+		String atac_peaks_bed = "~{raw_data_path}/~{dataset_sample_id}.atac_peaks.bed"
+		String atac_cut_sites_bigwig = "~{raw_data_path}/~{dataset_sample_id}.atac_cut_sites.bigwig"
+		String atac_peak_annotation_tsv = "~{raw_data_path}/~{dataset_sample_id}.atac_peak_annotation.tsv"
 	}
 
 	runtime {
@@ -465,7 +467,7 @@ task cellranger_arc_count {
 	}
 
 	parameter_meta {
-		dataset_id: {help: "Generated ASAP dataset ID; stored in the AnnData objects."}
+		dataset_sample_id: {help: "Generated ASAP dataset ID and sample ID; stored in the AnnData objects."}
 		sample_id: {help: "Generated ASAP sample ID; used to name output files."}
 		fastq_R1s: {help: "Sample's read 1 FASTQ file."}
 		fastq_R2s: {help: "Sample's read 2 FASTQ file."}
@@ -482,6 +484,7 @@ task cellranger_arc_count {
 
 task atac_counts_to_adata {
 	input {
+		String dataset_sample_id
 		String sample_id
 		String batch
 		String sex
@@ -510,17 +513,17 @@ task atac_counts_to_adata {
 			--sex ~{sex} \
 			--team ~{team_id} \
 			--dataset ~{dataset_id} \
-			--adata-output ~{dataset_id}.~{sample_id}.cleaned_unfiltered.h5ad
+			--adata-output ~{dataset_sample_id}.cleaned_unfiltered.h5ad
 
 		upload_outputs \
 			-b ~{billing_project} \
 			-d ~{raw_data_path} \
 			-i ~{write_tsv(workflow_info)} \
-			-o "~{dataset_id}.~{sample_id}.cleaned_unfiltered.h5ad"
+			-o "~{dataset_sample_id}.cleaned_unfiltered.h5ad"
 	>>>
 
 	output {
-		String initial_adata_object = "~{raw_data_path}/~{dataset_id}.~{sample_id}.cleaned_unfiltered.h5ad"
+		String initial_adata_object = "~{raw_data_path}/~{dataset_sample_id}.cleaned_unfiltered.h5ad"
 	}
 
 	runtime {
@@ -539,6 +542,7 @@ task atac_counts_to_adata {
 	}
 
 	parameter_meta {
+		dataset_sample_id: {help: "Generated ASAP dataset ID and sample ID; stored in the AnnData objects."}
 		sample_id: {help: "Generated ASAP sample ID; stored in the AnnData objects and used to name output files."}
 		batch: {help: "The sample's batch; stored in the AnnData objects."}
 		sex: {help: "The sample's sex; stored in the AnnData objects."}
