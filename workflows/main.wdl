@@ -582,12 +582,33 @@ workflow sc_multiome_analysis {
 
 		Array[File]? atac_cohort_manifests = atac_cross_team_cohort_analysis.cohort_analysis_manifest_tsvs
 
-		#######################################
-		################# ATAC ################
-		#######################################
+		###########################################
+		################# MULTIOME ################
+		###########################################
 		# Project cohort analysis outputs
+		Array[File?] multiome_project_filtered_mudata_object = multiome_project_cohort_analysis.filtered_mudata_object
+		Array[File?] multiome_project_multivi_integrated_mudata_object = multiome_project_cohort_analysis.multivi_integrated_mudata_object
+		Array[File?] multiome_project_multivi_model_tar_gz = multiome_project_cohort_analysis.multivi_model_tar_gz
+		Array[File?] multiome_project_multivi_clustered_mudata_object = multiome_project_cohort_analysis.multivi_clustered_mudata_object
+		Array[File?] multiome_project_multivi_clustered_umap_png = multiome_project_cohort_analysis.multivi_clustered_umap_png
+		Array[File?] multiome_project_annotated_mudata_object = multiome_project_cohort_analysis.annotated_mudata_object
+		Array[File?] multiome_project_feature_linked_mudata_object = multiome_project_cohort_analysis.feature_linked_mudata_object
+		Array[File?] multiome_project_feature_linkage_csv = multiome_project_cohort_analysis.feature_linkage_csv
+
+		Array[Array[File]?] multiome_preprocess_manifests = multiome_project_cohort_analysis.preprocess_manifest_tsvs
+		Array[Array[File]?] multiome_project_manifests = multiome_project_cohort_analysis.cohort_analysis_manifest_tsvs
 
 		# Cross-team cohort analysis outputs
+		File? multiome_cohort_filtered_mudata_object = multiome_cross_team_cohort_analysis.filtered_mudata_object
+		File? multiome_cohort_multivi_integrated_mudata_object = multiome_cross_team_cohort_analysis.multivi_integrated_mudata_object
+		File? multiome_cohort_multivi_model_tar_gz = multiome_cross_team_cohort_analysis.multivi_model_tar_gz
+		File? multiome_cohort_multivi_clustered_mudata_object = multiome_cross_team_cohort_analysis.multivi_clustered_mudata_object
+		File? multiome_cohort_multivi_clustered_umap_png = multiome_cross_team_cohort_analysis.multivi_clustered_umap_png
+		File? multiome_cohort_annotated_mudata_object = multiome_cross_team_cohort_analysis.annotated_mudata_object
+		File? multiome_cohort_feature_linked_mudata_object = multiome_cross_team_cohort_analysis.feature_linked_mudata_object
+		File? multiome_cohort_feature_linkage_csv = multiome_cross_team_cohort_analysis.feature_linkage_csv
+
+		Array[File]? multiome_cohort_manifests = multiome_cross_team_cohort_analysis.cohort_analysis_manifest_tsvs
 	}
 
 	meta {
@@ -605,7 +626,7 @@ workflow sc_multiome_analysis {
 		n_genes_by_counts_limits: {help: "Minimum and maximum number of genes detected per cell (genes with at least one count). [100, 10000]"}
 		allen_brain_mmc_precomputed_stats_h5: {help: "A precomputed statistics file from the Allen Brain Cell Atlas containing reference statistics (the average gene expression profile per cell type cluster and cell type taxonomy)."}
 		norm_target_sum: {help: "The total count value that each cell will be normalized to. [10000]"}
-		n_top_genes: {help: "Number of HVG genes to keep. [8000]"}
+		n_top_genes: {help: "Number of HVG genes to keep. [3000]"}
 		n_comps: {help: "Number of principal components to compute. [30]"}
 		scvi_latent_key: {help: "Latent key to save the scVI latent to. ['X_scVI']"}
 		scanvi_latent_key: {help: "Latent key to save the scANVI latent to. ['X_scANVI']"}
@@ -626,7 +647,7 @@ workflow sc_multiome_analysis {
 		multivi_max_epochs: {help: "The maximum number of full passes through the training data during MultiVI model training. If the model converges early, training will halt before this limit is reached. [300]"}
 		multivi_n_hidden: {help: "Number of nodes per hidden layer for MultiVI (i.e., the number of neurons per fully-connected layer between the input features and the latent space). [128]"}
 		multivi_batch_size: {help: "Training batch size for MultiVI. Controls how many cells are processed per training step. [128]"}
-		peak_gene_only: {help: "Keep only peak-gene linages (drop peak-peak and gene-gene). [true]"}
+		peak_gene_only: {help: "Keep only peak-gene lineages (drop peak-peak and gene-gene). [true]"}
 		min_linkage_corr: {help: "Minimum absolute feature linkage correlation to retain. [0.1]"}
 		min_linkage_sig: {help: "Minimum feature linkage significance to retain. [0.0]"}
 		run_cross_team_cohort_analysis: {help: "Whether to run downstream harmonization steps on all samples across projects. If set to false, only preprocessing steps (cellranger and generating the initial adata object(s)) will run for samples. [false]"}

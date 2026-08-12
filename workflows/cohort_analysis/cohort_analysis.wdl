@@ -132,6 +132,9 @@ workflow cohort_analysis {
 
 	Array[String] cohort_analysis_final_output_paths = flatten([
 		[
+			write_cohort_sample_list.cohort_sample_list
+		],
+		[
 			joint_qc.filtered_mudata_object
 		],
 		[
@@ -196,7 +199,7 @@ workflow cohort_analysis {
 		multivi_batch_size: {help: "Training batch size for MultiVI. Controls how many cells are processed per training step. [128]"}
 		n_neighbors: {help: "The size of local neighborhood (in terms of number of neighboring data points) used for manifold approximation. [15]"}
 		leiden_res: {help: "Leiden resolutions which are the parameter values controlling the coarseness of the clustering. [0.2, 0.5, 1.0]"}
-		peak_gene_only: {help: "Keep only peak-gene linages (drop peak-peak and gene-gene). [true]"}
+		peak_gene_only: {help: "Keep only peak-gene lineages (drop peak-peak and gene-gene). [true]"}
 		min_linkage_corr: {help: "Minimum absolute feature linkage correlation to retain. [0.1]"}
 		min_linkage_sig: {help: "Minimum feature linkage significance to retain. [0.0]"}
 		workflow_name: {help: "Workflow name; stored in the file-level manifest and final manifest with all saved files."}
@@ -404,7 +407,7 @@ task parse_feature_linkage {
 		cohort_id: {help: "Name of the cohort; used to name output files."}
 		cellranger_arc_feature_linkage_bedpe: {help: "Per-sample Cell Ranger ARC feature_linkage.bedpe files, one per sample, from preprocess."}
 		annotated_mudata_object: {help: "Paired Multiome MuData cell-type labels transferred from the RNA modality onto the shared obs and ATAC side (unmatched cells marked 'Unknown')."}
-		peak_gene_only: {help: "Keep only peak-gene linages (drop peak-peak and gene-gene). [true]"}
+		peak_gene_only: {help: "Keep only peak-gene lineages (drop peak-peak and gene-gene). [true]"}
 		min_linkage_corr: {help: "Minimum absolute feature linkage correlation to retain. [0.1]"}
 		min_linkage_sig: {help: "Minimum feature linkage significance to retain. [0.0]"}
 		raw_data_path: {help: "Raw data bucket path for outputs; location of raw bucket to upload task outputs to (`<raw_data_bucket>/workflow_execution/cohort_analysis/<cohort_analysis_version>/<run_timestamp>`)."}
