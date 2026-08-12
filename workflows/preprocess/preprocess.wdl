@@ -383,7 +383,7 @@ task cellranger_arc_count {
 
 		cellranger-arc --version
 
-		/usr/bin/time \
+		/usr/bin/time -v \
 		cellranger-arc count \
 			--id=~{sample_id} \
 			--reference="$(pwd)/cellranger_arc_refdata" \

@@ -66,8 +66,7 @@ def build_paired_anndata(mdata: md.MuData, counts_layer: str):
     atac_var = atac.var.copy()
     atac_var["modality"] = "Peaks"
     var = pd.concat([rna_var, atac_var], axis=0)
-    # Force a unique var index without dropping rows: a gene and a peak could
-    # share a name, which would make AnnData choke on a non-unique index.
+   
     if not var.index.is_unique:
         var.index = (
             [f"{n}" for n in rna.var_names]

@@ -38,9 +38,9 @@ workflow sc_multiome_analysis {
 		String scanvi_latent_key = "X_scANVI"
 		String scanvi_predictions_key = "C_scANVI"
 
-		# RNA - Clustering parameters
+		# RNA and Multiome - Clustering parameters
 		Int n_neighbors = 15
-		Array[Float] leiden_res = [0.05, 0.1, 0.2, 0.4]
+		Array[Float] leiden_res = [0.2, 0.5, 1.0]
 
 		# RNA - Groups and features
 		Array[String] rna_groups = ["sample", "batch", "cell_type", "leiden_res_0.05", "leiden_res_0.10", "leiden_res_0.20", "leiden_res_0.40"]
@@ -223,6 +223,8 @@ workflow sc_multiome_analysis {
 					multivi_max_epochs = multivi_max_epochs,
 					multivi_n_hidden = multivi_n_hidden,
 					multivi_batch_size = multivi_batch_size,
+					n_neighbors = n_neighbors,
+					leiden_res = leiden_res,
 					peak_gene_only = peak_gene_only,
 					min_linkage_corr = min_linkage_corr,
 					min_linkage_sig = min_linkage_sig,
@@ -319,6 +321,8 @@ workflow sc_multiome_analysis {
 				multivi_max_epochs = multivi_max_epochs,
 				multivi_n_hidden = multivi_n_hidden,
 				multivi_batch_size = multivi_batch_size,
+				n_neighbors = n_neighbors,
+				leiden_res = leiden_res,
 				peak_gene_only = peak_gene_only,
 				min_linkage_corr = min_linkage_corr,
 				min_linkage_sig = min_linkage_sig,
@@ -604,7 +608,7 @@ workflow sc_multiome_analysis {
 		scanvi_predictions_key: {help: "scANVI cell type predictions column name. ['C_scANVI']"}
 		batch_key: {help: "Key in AnnData object for batch information. ['batch_id']"}
 		n_neighbors: {help: "The size of local neighborhood (in terms of number of neighboring data points) used for manifold approximation. [15]"}
-		leiden_res: {help: "Leiden resolutions which are the parameter values controlling the coarseness of the clustering. [0.05, 0.1, 0.2, 0.4]"}
+		leiden_res: {help: "Leiden resolutions which are the parameter values controlling the coarseness of the clustering. [0.2, 0.5, 1.0]"}
 		rna_groups: {help: "RNA groups to produce umap plots for. ['sample', 'batch', 'cell_type', 'leiden_res_0.05', 'leiden_res_0.10', 'leiden_res_0.20', 'leiden_res_0.40']"}
 		rna_features: {help: "RNA features to produce umap plots for. ['n_genes_by_counts', 'total_counts', 'pct_counts_mt', 'pct_counts_rb', 'doublet_score', 'S_score', 'G2M_score']"}
 		peakvi_latent_key: {help: "Latent key to save the peakVI latent to. ['X_peakVI']"}
