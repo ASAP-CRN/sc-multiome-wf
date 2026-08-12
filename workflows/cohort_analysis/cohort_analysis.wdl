@@ -18,9 +18,10 @@ workflow cohort_analysis {
 
 		File filtered_rna_adata_object
 		File filtered_atac_adata_object
+		File labeled_cells_rna_adata_object
 
 		Float min_overlap_frac
-
+		String scanvi_predictions_key
 		String batch_key
 		String multivi_latent_key
 		Int multivi_max_epochs
@@ -95,11 +96,21 @@ workflow cohort_analysis {
 			zones = zones
 	}
 
+	call annotate_and_transfer {
+		input:
+			cohort_id = cohort_id,
+			multivi_clustered_mudata_object = multivi_integration.multivi_clustered_mudata_object,
+			labeled_cells_rna_adata_object = labeled_cells_rna_adata_object,
+			scanvi_predictions_key = scanvi_predictions_key,
+			container_registry = container_registry,
+			zones = zones
+	}
+
 	call parse_feature_linkage {
 		input:
 			cohort_id = cohort_id,
 			cellranger_arc_feature_linkage_bedpe = cellranger_arc_feature_linkage_bedpe,
-			multivi_integrated_mudata_object = multivi_integration.multivi_integrated_mudata_object,
+			annotated_mudata_object = annotate_and_transfer.annotated_mudata_object,
 			peak_gene_only = peak_gene_only,
 			min_linkage_corr = min_linkage_corr,
 			min_linkage_sig = min_linkage_sig,
@@ -124,7 +135,8 @@ workflow cohort_analysis {
 			joint_qc.filtered_mudata_object
 		],
 		[
-			multivi_integration.multivi_model_tar_gz
+			multivi_integration.multivi_model_tar_gz,
+			multivi_integration.multivi_clustered_umap_png
 		],
 		[
 			parse_feature_linkage.feature_linked_mudata_object,
@@ -144,11 +156,19 @@ workflow cohort_analysis {
 	output {
 		File cohort_sample_list = write_cohort_sample_list.cohort_sample_list #!FileCoercion
 
-		# 
+		# Paired RNA and ATAC data
 		File filtered_mudata_object = joint_qc.filtered_mudata_object #!FileCoercion
+
+		# MultiVI integrated mudata objects
 		File multivi_integrated_mudata_object = multivi_integration.multivi_integrated_mudata_object
 		File multivi_model_tar_gz = multivi_integration.multivi_model_tar_gz #!FileCoercion
-
+		File multivi_clustered_mudata_object = multivi_integration.multivi_clustered_mudata_object
+		File multivi_clustered_umap_png = multivi_integration.multivi_clustered_umap_png #!FileCoercion
+		
+		# Annotated cell type transfer to mudata object
+		File annotated_mudata_object = annotate_and_transfer.annotated_mudata_object
+		
+		# Add Cell Ranger feature linkage bedpe to mudata object
 		File feature_linked_mudata_object = parse_feature_linkage.feature_linked_mudata_object #!FileCoercion
 		File feature_linkage_csv = parse_feature_linkage.feature_linkage_csv #!FileCoercion
 
@@ -166,8 +186,10 @@ workflow cohort_analysis {
 		preprocessing_output_file_paths: {help: "Selected preprocessed output files to upload to the staging bucket alongside selected cohort analysis output files."}
 		filtered_rna_adata_object: {help: "Cohort-level filtered RNA AnnData ({cohort}.filtered.h5ad from the RNA `filter` task)"}
 		filtered_atac_adata_object: {help: "Cohort-level filtered ATAC AnnData ({cohort}.merged_filtered.h5ad from the ATAC `merge_and_qc` task)"}
+		labeled_cells_rna_adata_object: {help: "RNA pipeline labeled AnnData (labeled cells AnnData object from sc-rnaseq-wf) holding the label column."}
 		min_overlap_frac: {help: "Minimum fraction of the smaller modality that must be shared; below this the run fails as a likely barcode-key mismatch [0.5]"}
 		batch_key: {help: "Key in AnnData object for batch information. ['batch_id']"}
+		scanvi_predictions_key: {help: "scANVI cell type predictions column name. ['C_scANVI']"}
 		multivi_latent_key: {help: "Latent key to save the MultiVI latent to. ['X_multiVI']"}
 		multivi_max_epochs: {help: "The maximum number of full passes through the training data during MultiVI model training. If the model converges early, training will halt before this limit is reached. [300]"}
 		multivi_n_hidden: {help: "Number of nodes per hidden layer for MultiVI (i.e., the number of neurons per fully-connected layer between the input features and the latent space). [128]"}
@@ -256,13 +278,71 @@ task joint_qc {
 	}
 }
 
+task annotate_and_transfer {
+	input {
+		String cohort_id
+
+		File multivi_clustered_mudata_object
+		File labeled_cells_rna_adata_object
+
+		String scanvi_predictions_key
+
+		String container_registry
+		String zones
+	}
+
+	Int mem_gb = ceil(size([multivi_clustered_mudata_object, labeled_cells_rna_adata_object], "GB") * 2 + 20)
+	Int disk_size = ceil(size([multivi_clustered_mudata_object, labeled_cells_rna_adata_object], "GB") * 4 + 50)
+
+	command <<<
+		set -euo pipefail
+
+		/usr/bin/time -v \
+		annotate_and_transfer \
+			--mudata-input ~{multivi_clustered_mudata_object} \
+			--labeled-rna-input ~{labeled_cells_rna_adata_object} \
+			--label-key ~{scanvi_predictions_key} \
+			--mudata-output "~{cohort_id}.annotated.h5mu"
+	>>>
+
+	output {
+		File annotated_mudata_object = "~{cohort_id}.annotated.h5mu"
+	}
+
+	runtime {
+		docker: "~{container_registry}/sc_multiome_tools:1.0.0"
+		cpu: 4
+		cpuPlatform: "Intel Cascade Lake"
+		memory: "~{mem_gb} GB"
+		disks: "local-disk ~{disk_size} HDD"
+		bootDiskSizeGb: 40
+		zones: zones
+	}
+
+	meta {
+		description: "Transfers RNA-derived cell-type labels onto the paired Multiome MuData by barcode; paired cells absent from the labeled RNA object are kept and marked 'Unknown'."
+	}
+
+	parameter_meta {
+		cohort_id: {help: "Name of the cohort; used to name output files."}
+		multivi_clustered_mudata_object: {help: "Clustered paired Multiome MuData."}
+		labeled_cells_rna_adata_object: {help: "RNA pipeline labeled AnnData (labeled cells AnnData object from sc-rnaseq-wf) holding the label column."}
+		scanvi_predictions_key: {help: "scANVI cell type predictions column name. ['C_scANVI']"}
+		raw_data_path: {help: "Raw data bucket path for outputs; location of raw bucket to upload task outputs to (`<raw_data_bucket>/workflow_execution/cohort_analysis/<cohort_analysis_version>/<run_timestamp>`)."}
+		workflow_info: {help: "UTC timestamp, workflow name, workflow version, and GitHub release; stored in the file-level manifest and final manifest with all saved files."}
+		billing_project: {help: "Billing project to charge GCP costs."}
+		container_registry: {help: "Container registry where workflow Docker images are hosted."}
+		zones: {help: "Space-delimited set of GCP zones to spin up compute in. ['us-central1-c us-central1-f']"}
+	}
+}
+
 task parse_feature_linkage {
 	input {
 		String cohort_id
 
 		Array[File] cellranger_arc_feature_linkage_bedpe
 
-		File multivi_integrated_mudata_object
+		File annotated_mudata_object
 
 		Boolean peak_gene_only
 		Float min_linkage_corr
@@ -277,15 +357,15 @@ task parse_feature_linkage {
 
 	String peak_gene_only_flag = if peak_gene_only then "--peak-gene-only" else ""
 
-	Int mem_gb = ceil((size(multivi_integrated_mudata_object, "GB") + size(flatten([cellranger_arc_feature_linkage_bedpe]), "GB")) * 2 + 20)
-	Int disk_size = ceil((size(multivi_integrated_mudata_object, "GB") + size(flatten([cellranger_arc_feature_linkage_bedpe]), "GB")) * 4 + 50)
+	Int mem_gb = ceil((size(annotated_mudata_object, "GB") + size(flatten([cellranger_arc_feature_linkage_bedpe]), "GB")) * 2 + 20)
+	Int disk_size = ceil((size(annotated_mudata_object, "GB") + size(flatten([cellranger_arc_feature_linkage_bedpe]), "GB")) * 4 + 50)
 
 	command <<<
 		set -euo pipefail
 
 		/usr/bin/time -v \
 		parse_feature_linkage \
-			--mudata-input ~{multivi_integrated_mudata_object} \
+			--mudata-input ~{annotated_mudata_object} \
 			--bedpe-inputs ~{sep=" " cellranger_arc_feature_linkage_bedpe} \ #TODO
 			~{peak_gene_only_flag} \
 			--corr-threshold ~{min_linkage_corr} \
@@ -323,7 +403,7 @@ task parse_feature_linkage {
 	parameter_meta {
 		cohort_id: {help: "Name of the cohort; used to name output files."}
 		cellranger_arc_feature_linkage_bedpe: {help: "Per-sample Cell Ranger ARC feature_linkage.bedpe files, one per sample, from preprocess."}
-		multivi_integrated_mudata_object: {help: "Paired Multiome MuData object with the joint, batch-corrected MultiVI latent representation stored in obsm."}
+		annotated_mudata_object: {help: "Paired Multiome MuData cell-type labels transferred from the RNA modality onto the shared obs and ATAC side (unmatched cells marked 'Unknown')."}
 		peak_gene_only: {help: "Keep only peak-gene linages (drop peak-peak and gene-gene). [true]"}
 		min_linkage_corr: {help: "Minimum absolute feature linkage correlation to retain. [0.1]"}
 		min_linkage_sig: {help: "Minimum feature linkage significance to retain. [0.0]"}
