@@ -115,17 +115,17 @@ workflow cohort_analysis {
 	}
 
 	call ScAtacCohortAnalysis.peak_calling as celltype_peak_calling {
-        input:
-            cohort_id = cohort_id,
-            integrated_adata_object = annotate_and_transfer.atac_annotated_adata_object,
-            integration_method = "multivi",
-            macs3_groupby = "cell_type",
-            raw_data_path = raw_data_path,
-            workflow_info = workflow_info,
-            billing_project = billing_project,
-            container_registry = container_registry,
-            zones = zones
-    }
+		input:
+			cohort_id = cohort_id,
+			integrated_adata_object = annotate_and_transfer.atac_annotated_adata_object,
+			integration_method = "multivi",
+			macs3_groupby = "cell_type",
+			raw_data_path = raw_data_path,
+			workflow_info = workflow_info,
+			billing_project = billing_project,
+			container_registry = container_registry,
+			zones = zones
+	}
 
 	call parse_feature_linkage {
 		input:
@@ -238,7 +238,7 @@ workflow cohort_analysis {
 	}
 
 	meta {
-		description: "Runs QC filtering on combined Multiome data (RNA + ATAC) for a cohort."
+		description: "Runs QC filtering, sample integration, annotation, peaks, and linkages on combined Multiome data (RNA + ATAC) for a cohort."
 	}
 
 	parameter_meta {
@@ -249,7 +249,7 @@ workflow cohort_analysis {
 		filtered_atac_adata_object: {help: "Cohort-level filtered ATAC AnnData ({cohort}.merged_filtered.h5ad from the ATAC `merge_and_qc` task)"}
 		labeled_cells_rna_adata_object: {help: "RNA pipeline labeled AnnData (labeled cells AnnData object from sc-rnaseq-wf) holding the label column."}
 		min_overlap_frac: {help: "Minimum fraction of the smaller modality that must be shared; below this the run fails as a likely barcode-key mismatch [0.5]"}
-		batch_key: {help: "Key in AnnData object for batch information. ['batch_id']"}
+		batch_key: {help: "Key in MuData object for batch information. ['batch_id']"}
 		scanvi_predictions_key: {help: "scANVI cell type predictions column name. ['C_scANVI']"}
 		multivi_latent_key: {help: "Latent key to save the MultiVI latent to. ['X_multiVI']"}
 		multivi_max_epochs: {help: "The maximum number of full passes through the training data during MultiVI model training. If the model converges early, training will halt before this limit is reached. [300]"}
@@ -259,7 +259,7 @@ workflow cohort_analysis {
 		leiden_res: {help: "Leiden resolutions which are the parameter values controlling the coarseness of the clustering. [0.2, 0.5, 1.0]"}
 		tss_bed: {help: "Gene TSS table derived from the Cell Ranger ARC reference (regions/tss.bed), reshaped to three columns: chrom, tss, gene_name. Gene names must match the RNA modality var_names."}
 		celltype_key: {help: "Column in mdata.obs holding the transferred cell-type label. ['cell_type']"}
-		peak_gene_only: {help: "Keep only peak-gene lineages (drop peak-peak and gene-gene). [true]"}
+		peak_gene_only: {help: "Keep only peak-gene linkages (drop peak-peak and gene-gene). [true]"}
 		window: {help: "Distance in bp up- and downstream of each gene's TSS within which peaks are tested for linkage. [500000]"}
 		min_cells: {help: "Minimum number of cells in which a peak must be accessible to be tested. [10]"}
 		min_group_cells: {help: "Minimum number of cells in a cell type for linkage to be computed for that group; smaller groups are skipped as unstable. [50]"}
@@ -398,9 +398,6 @@ task annotate_and_transfer {
 		multivi_clustered_mudata_object: {help: "Clustered paired Multiome MuData."}
 		labeled_cells_rna_adata_object: {help: "RNA pipeline labeled AnnData (labeled cells AnnData object from sc-rnaseq-wf) holding the label column."}
 		scanvi_predictions_key: {help: "scANVI cell type predictions column name. ['C_scANVI']"}
-		raw_data_path: {help: "Raw data bucket path for outputs; location of raw bucket to upload task outputs to (`<raw_data_bucket>/workflow_execution/cohort_analysis/<cohort_analysis_version>/<run_timestamp>`)."}
-		workflow_info: {help: "UTC timestamp, workflow name, workflow version, and GitHub release; stored in the file-level manifest and final manifest with all saved files."}
-		billing_project: {help: "Billing project to charge GCP costs."}
 		container_registry: {help: "Container registry where workflow Docker images are hosted."}
 		zones: {help: "Space-delimited set of GCP zones to spin up compute in. ['us-central1-c us-central1-f']"}
 	}
@@ -436,7 +433,7 @@ task parse_feature_linkage {
 		/usr/bin/time -v \
 		parse_feature_linkage \
 			--mudata-input ~{annotated_mudata_object} \
-			--bedpe-inputs ~{sep=" " cellranger_arc_feature_linkage_bedpe} \ #TODO
+			--bedpe-inputs ~{sep=" " cellranger_arc_feature_linkage_bedpe} \
 			~{peak_gene_only_flag} \
 			--corr-threshold ~{min_linkage_corr} \
 			--significance-threshold ~{min_linkage_sig} \
@@ -474,7 +471,7 @@ task parse_feature_linkage {
 		cohort_id: {help: "Name of the cohort; used to name output files."}
 		cellranger_arc_feature_linkage_bedpe: {help: "Per-sample Cell Ranger ARC feature_linkage.bedpe files, one per sample, from preprocess."}
 		annotated_mudata_object: {help: "Paired Multiome MuData cell-type labels transferred from the RNA modality onto the shared obs and ATAC side (unmatched cells marked 'Unknown')."}
-		peak_gene_only: {help: "Keep only peak-gene lineages (drop peak-peak and gene-gene). [true]"}
+		peak_gene_only: {help: "Keep only peak-gene linkages (drop peak-peak and gene-gene). [true]"}
 		min_linkage_corr: {help: "Minimum absolute feature linkage correlation to retain. [0.1]"}
 		min_linkage_sig: {help: "Minimum feature linkage significance to retain. [0.0]"}
 		raw_data_path: {help: "Raw data bucket path for outputs; location of raw bucket to upload task outputs to (`<raw_data_bucket>/workflow_execution/cohort_analysis/<cohort_analysis_version>/<run_timestamp>`)."}

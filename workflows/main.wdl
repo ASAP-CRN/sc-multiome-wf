@@ -664,7 +664,7 @@ workflow sc_multiome_analysis {
 		scvi_latent_key: {help: "Latent key to save the scVI latent to. ['X_scVI']"}
 		scanvi_latent_key: {help: "Latent key to save the scANVI latent to. ['X_scANVI']"}
 		scanvi_predictions_key: {help: "scANVI cell type predictions column name. ['C_scANVI']"}
-		batch_key: {help: "Key in AnnData object for batch information. ['batch_id']"}
+		batch_key: {help: "Key in MuData object for batch information. ['batch_id']"}
 		n_neighbors: {help: "The size of local neighborhood (in terms of number of neighboring data points) used for manifold approximation. [15]"}
 		leiden_res: {help: "Leiden resolutions which are the parameter values controlling the coarseness of the clustering. [0.2, 0.5, 1.0]"}
 		rna_groups: {help: "RNA groups to produce umap plots for. ['sample', 'batch', 'cell_type', 'leiden_res_0.05', 'leiden_res_0.10', 'leiden_res_0.20', 'leiden_res_0.40']"}
@@ -682,7 +682,7 @@ workflow sc_multiome_analysis {
 		multivi_batch_size: {help: "Training batch size for MultiVI. Controls how many cells are processed per training step. [128]"}
 		tss_bed: {help: "Gene TSS table derived from the Cell Ranger ARC reference (regions/tss.bed), reshaped to three columns: chrom, tss, gene_name. Gene names must match the RNA modality var_names."}
 		celltype_key: {help: "Column in mdata.obs holding the transferred cell-type label. ['cell_type']"}
-		peak_gene_only: {help: "Keep only peak-gene lineages (drop peak-peak and gene-gene). [true]"}
+		peak_gene_only: {help: "Keep only peak-gene linkages (drop peak-peak and gene-gene). [true]"}
 		window: {help: "Distance in bp up- and downstream of each gene's TSS within which peaks are tested for linkage. [500000]"}
 		min_cells: {help: "Minimum number of cells in which a peak must be accessible to be tested. [10]"}
 		min_group_cells: {help: "Minimum number of cells in a cell type for linkage to be computed for that group; smaller groups are skipped as unstable. [50]"}

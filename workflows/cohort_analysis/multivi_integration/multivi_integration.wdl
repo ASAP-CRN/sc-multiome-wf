@@ -61,13 +61,13 @@ workflow multivi_integration {
 	}
 
 	meta {
-		description: "Integrates samples by training a PeakVI variational autoencoder for batch correction and clusters cells using Leiden community detection, producing an integrated AnnData object, PeakVI model, and UMAP plot."
+		description: "Integrates samples by training a PeakVI variational autoencoder for batch correction and clusters cells using Leiden community detection, producing an integrated MuData object, PeakVI model, and UMAP plot."
 	}
 
 	parameter_meta {
 		cohort_id: {help: "Name of the cohort; used to name output files."}
 		filtered_mudata_object: {help: "Filtered paired Multiome MuData object."}
-		batch_key: {help: "Key in AnnData object for batch information. ['batch_id']"}
+		batch_key: {help: "Key in MuData object for batch information. ['batch_id']"}
 		multivi_latent_key: {help: "Latent key to save the MultiVI latent to. ['X_multiVI']"}
 		multivi_max_epochs: {help: "The maximum number of full passes through the training data during MultiVI model training. If the model converges early, training will halt before this limit is reached. [300]"}
 		multivi_n_hidden: {help: "Number of nodes per hidden layer for MultiVI (i.e., the number of neurons per fully-connected layer between the input features and the latent space). [128]"}
@@ -156,7 +156,7 @@ task integrate_multivi {
 	parameter_meta {
 		cohort_id: {help: "Name of the cohort; used to name output files."}
 		filtered_mudata_object: {help: "Filtered paired Multiome MuData object."}
-		batch_key: {help: "Key in AnnData object for batch information. ['batch_id']"}
+		batch_key: {help: "Key in MuData object for batch information. ['batch_id']"}
 		multivi_latent_key: {help: "Latent key to save the MultiVI latent to. ['X_multiVI']"}
 		multivi_max_epochs: {help: "The maximum number of full passes through the training data during MultiVI model training. If the model converges early, training will halt before this limit is reached. [300]"}
 		multivi_n_hidden: {help: "Number of nodes per hidden layer for MultiVI (i.e., the number of neurons per fully-connected layer between the input features and the latent space). [128]"}
@@ -231,7 +231,7 @@ task cluster_multivi {
 
 	parameter_meta {
 		cohort_id: {help: "Name of the cohort; used to name output files."}
-		multivi_integrated_adata_object: {help: "MultiVI-integrated AnnData object."}
+		multivi_integrated_mudata_object: {help: "MultiVI-integrated MuData object."}
 		multivi_latent_key: {help: "Latent key to save the MultiVI latent to. ['X_multiVI']"}
 		n_neighbors: {help: "The size of local neighborhood (in terms of number of neighboring data points) used for manifold approximation. [15]"}
 		leiden_res: {help: "Leiden resolutions which are the parameter values controlling the coarseness of the clustering. [0.2, 0.5, 1.0]"}
