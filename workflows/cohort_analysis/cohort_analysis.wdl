@@ -170,6 +170,7 @@ workflow cohort_analysis {
 		
 		# Annotated cell type transfer to mudata object
 		File annotated_mudata_object = annotate_and_transfer.annotated_mudata_object
+		File atac_annotated_adata_object = annotate_and_transfer.atac_annotated_adata_object
 		
 		# Add Cell Ranger feature linkage bedpe to mudata object
 		File feature_linked_mudata_object = parse_feature_linkage.feature_linked_mudata_object #!FileCoercion
@@ -305,11 +306,13 @@ task annotate_and_transfer {
 			--mudata-input ~{multivi_clustered_mudata_object} \
 			--labeled-rna-input ~{labeled_cells_rna_adata_object} \
 			--label-key ~{scanvi_predictions_key} \
-			--mudata-output "~{cohort_id}.annotated.h5mu"
+			--mudata-output "~{cohort_id}.annotated.h5mu" \
+			--atac-adata-output "~{cohort_id}.atac_annotated.h5ad"
 	>>>
 
 	output {
 		File annotated_mudata_object = "~{cohort_id}.annotated.h5mu"
+		File atac_annotated_adata_object = "~{cohort_id}.atac_annotated.h5ad"
 	}
 
 	runtime {

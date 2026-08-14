@@ -69,6 +69,14 @@ def main(args):
     )
     print(f"Wrote {args.mudata_output}")
 
+    atac = mdata.mod["atac"].copy()
+    atac.obs["cell_type"] = mdata.obs["cell_type"].reindex(atac.obs_names).values
+    atac.write(
+        filename=args.atac_adata_output,
+        compression="gzip"
+    )
+    print(f"Wrote {args.atac_adata_output}")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -101,6 +109,13 @@ if __name__ == "__main__":
         type=str,
         required=True,
         help="Output file name for saving the annotated MuData object",
+    )
+    parser.add_argument(
+        "-t",
+        "--atac-adata-output",
+        type=str,
+        required=True,
+        help="Output file name for saving the ATAC AnnData object",
     )
 
     args = parser.parse_args()

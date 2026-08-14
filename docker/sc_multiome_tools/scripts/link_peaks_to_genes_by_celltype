@@ -78,7 +78,11 @@ def link_by_celltype(
     mdata, tss, celltype_key, window, min_cells, corr_threshold, pval_threshold, min_group_cells
 ):
     rna_all = mdata.mod["rna"][mdata.obs_names]
-    atac_all = mdata.mod["atac"][mdata.obs_names]
+    # Prefer the called cell-type peak matrix (mod['peaks']) over raw tiles
+    # (mod['atac']); linkage should correlate against actual called peaks.
+    atac_key = "peaks" if "peaks" in mdata.mod else "atac"
+    print(f"Using accessibility from mod['{atac_key}']")
+    atac_all = mdata.mod[atac_key][mdata.obs_names]
     peak_coords = parse_peak_coords(atac_all.var)
 
     labels = mdata.obs[celltype_key]
