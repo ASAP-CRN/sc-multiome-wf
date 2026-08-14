@@ -5,12 +5,12 @@ import numpy as np
 import pandas as pd
 import scipy.sparse as sp
 import mudata as md
+import scanpy as sc
 from scipy.stats import pearsonr
 import hdf5plugin
 
 
 def parse_peak_coords(var: pd.DataFrame):
-    """Derive chrom/start/end/mid for each peak (explicit columns or parsed index)."""
     if {"chrom", "start", "end"}.issubset(var.columns):
         coords = var[["chrom", "start", "end"]].copy()
     else:
@@ -113,8 +113,13 @@ def link_by_celltype(
 
 def main(args):
     mdata = md.read_h5mu(args.mudata_input)
+    peaks = sc.read_h5ad(args.celltype_peaks_adata_input)
     tss = load_gene_tss(args.tss_bed)
 
+    shared = mdata.obs_names.intersection(peaks.obs_names)
+    mdata.mod["peaks"] = peaks[shared].copy()
+    mdata.update()
+    
     links = link_by_celltype(
         mdata, tss, args.celltype_key, args.window, args.min_cells,
         args.corr_threshold, args.pval_threshold, args.min_group_cells
@@ -133,46 +138,83 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Cell-type-resolved peak-to-gene linkage (per-population correlation ARC does not provide)"
+        description="Cell-type-resolved peak-to-gene linkage (per-population correlation)"
     )
     parser.add_argument(
-        "-a", "--mudata-input", type=str, required=True,
+        "-a",
+        "--mudata-input",
+        type=str,
+        required=True,
         help="MuData (.h5mu) object with paired 'rna' and 'atac' and transferred cell_type labels",
     )
     parser.add_argument(
-        "-t", "--tss-bed", type=str, required=True,
-        help="Tab-separated gene TSS table: chrom, tss, gene_name (no header)",
+        "-b",
+        "--celltype-peaks-adata-input",
+        type=str,
+        required=True,
+        help="Cell-type peaks matrix AnnData from peak_calling; folded in as the accessibility source so linkage correlates against called peaks rather than raw tiles",
     )
     parser.add_argument(
-        "-k", "--celltype-key", type=str, required=True,
+        "-t",
+        "--tss-bed",
+        type=str,
+        required=True,
+        help="Tab-separated gene TSS table: chrom, tss, gene_name (no header) obtained from Cell Ranger ARC",
+    )
+    parser.add_argument(
+        "-k",
+        "--celltype-key",
+        type=str,
+        required=True,
         help="Column in mdata.obs holding transferred cell type labels [cell_type]",
     )
     parser.add_argument(
-        "-w", "--window", type=int, required=True,
+        "-w",
+        "--window",
+        type=int,
+        required=True,
         help="Distance in bp up/downstream of the TSS to search for peaks [500000]",
     )
     parser.add_argument(
-        "-c", "--min-cells", type=int, required=True,
+        "-c",
+        "--min-cells",
+        type=int,
+        required=True,
         help="Min cells in which a peak must be accessible to be tested [10]",
     )
     parser.add_argument(
-        "-r", "--corr-threshold", type=float, required=True,
-        help="Minimum absolute Pearson correlation to retain a link [0.1]",
-    )
-    parser.add_argument(
-        "-p", "--pval-threshold", type=float, required=True,
-        help="Maximum p-value to retain a link [0.05]",
-    )
-    parser.add_argument(
-        "-m", "--min-group-cells", type=int, required=True,
+        "-m",
+        "--min-group-cells",
+        type=int,
+        required=True,
         help="Minimum cells in a cell type to run linkage for that group [50]",
     )
     parser.add_argument(
-        "-o", "--mudata-output", type=str, required=True,
-        help="Output file name for saving the MuData object with links in uns",
+        "-r",
+        "--corr-threshold",
+        type=float,
+        required=True,
+        help="Minimum absolute Pearson correlation to retain a link [0.1]",
     )
     parser.add_argument(
-        "-l", "--links-output", type=str, required=True,
+        "-p",
+        "--pval-threshold",
+        type=float,
+        required=True,
+        help="Maximum p-value to retain a link [0.05]",
+    )
+    parser.add_argument(
+        "-o",
+        "--mudata-output",
+        type=str,
+        required=True,
+        help="Output file name for saving the MuData object",
+    )
+    parser.add_argument(
+        "-l",
+        "--links-output", 
+        type=str,
+        required=True,
         help="Output CSV file name for the cell-type-resolved links table",
     )
 

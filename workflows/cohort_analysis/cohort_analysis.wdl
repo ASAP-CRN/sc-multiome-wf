@@ -32,9 +32,16 @@ workflow cohort_analysis {
 		Int n_neighbors
 		Array[Float] leiden_res
 
+		File tss_bed
+		String celltype_key
 		Boolean peak_gene_only
+		Int window
+		Int min_cells
+		Int min_group_cells
 		Float min_linkage_corr
 		Float min_linkage_sig
+		Float corr_threshold
+		Float pval_threshold
 
 		String workflow_name
 		String workflow_version
@@ -135,6 +142,25 @@ workflow cohort_analysis {
 			zones = zones
 	}
 
+	call link_peaks_to_genes_by_celltype {
+		input:
+			cohort_id = cohort_id,
+			annotated_mudata_object = annotate_and_transfer.annotated_mudata_object,
+			celltype_peaks_matrix_adata_object = celltype_peak_calling.peaks_matrix_adata_object, #!FileCoercion
+			tss_bed = tss_bed,
+			celltype_key = celltype_key,
+			window = window,
+			min_cells = min_cells,
+			min_group_cells = min_group_cells,
+			corr_threshold = corr_threshold,
+			pval_threshold = pval_threshold,
+			raw_data_path = raw_data_path,
+			workflow_info = workflow_info,
+			billing_project = billing_project,
+			container_registry = container_registry,
+			zones = zones
+	}
+
 	call UploadFinalOutputs.upload_final_outputs as upload_preprocess_files {
 		input:
 			output_file_paths = preprocessing_output_file_paths,
@@ -163,6 +189,9 @@ workflow cohort_analysis {
 		[
 			parse_feature_linkage.feature_linked_mudata_object,
 			parse_feature_linkage.feature_linkage_csv
+		],
+		[
+			link_peaks_to_genes_by_celltype.peak_gene_links_csv
 		]
 	]) #!StringCoercion
 
@@ -200,6 +229,10 @@ workflow cohort_analysis {
 		File feature_linked_mudata_object = parse_feature_linkage.feature_linked_mudata_object #!FileCoercion
 		File feature_linkage_csv = parse_feature_linkage.feature_linkage_csv #!FileCoercion
 
+		# Link peak-to-gene to cell types
+		File linked_by_celltype_mudata_object = link_peaks_to_genes_by_celltype.linked_by_celltype_mudata_object
+		File peak_gene_links_csv = link_peaks_to_genes_by_celltype.peak_gene_links_csv #!FileCoercion
+
 		Array[File] preprocess_manifest_tsvs = upload_preprocess_files.manifests #!FileCoercion
 		Array[File] cohort_analysis_manifest_tsvs = upload_cohort_analysis_files.manifests #!FileCoercion
 	}
@@ -224,9 +257,16 @@ workflow cohort_analysis {
 		multivi_batch_size: {help: "Training batch size for MultiVI. Controls how many cells are processed per training step. [128]"}
 		n_neighbors: {help: "The size of local neighborhood (in terms of number of neighboring data points) used for manifold approximation. [15]"}
 		leiden_res: {help: "Leiden resolutions which are the parameter values controlling the coarseness of the clustering. [0.2, 0.5, 1.0]"}
+		tss_bed: {help: "Gene TSS table derived from the Cell Ranger ARC reference (regions/tss.bed), reshaped to three columns: chrom, tss, gene_name. Gene names must match the RNA modality var_names."}
+		celltype_key: {help: "Column in mdata.obs holding the transferred cell-type label. ['cell_type']"}
 		peak_gene_only: {help: "Keep only peak-gene lineages (drop peak-peak and gene-gene). [true]"}
+		window: {help: "Distance in bp up- and downstream of each gene's TSS within which peaks are tested for linkage. [500000]"}
+		min_cells: {help: "Minimum number of cells in which a peak must be accessible to be tested. [10]"}
+		min_group_cells: {help: "Minimum number of cells in a cell type for linkage to be computed for that group; smaller groups are skipped as unstable. [50]"}
 		min_linkage_corr: {help: "Minimum absolute feature linkage correlation to retain. [0.1]"}
 		min_linkage_sig: {help: "Minimum feature linkage significance to retain. [0.0]"}
+		corr_threshold: {help: "Minimum absolute Pearson correlation between peak accessibility and gene expression to retain a link. [0.1]"}
+		pval_threshold: {help: "Maximum p-value to retain a link. [0.05]"}
 		workflow_name: {help: "Workflow name; stored in the file-level manifest and final manifest with all saved files."}
 		workflow_version: {help: "Workflow version; stored in the file-level manifest and final manifest with all saved files."}
 		workflow_release: {help: "GitHub release; stored in the file-level manifest and final manifest with all saved files."}
@@ -437,6 +477,93 @@ task parse_feature_linkage {
 		peak_gene_only: {help: "Keep only peak-gene lineages (drop peak-peak and gene-gene). [true]"}
 		min_linkage_corr: {help: "Minimum absolute feature linkage correlation to retain. [0.1]"}
 		min_linkage_sig: {help: "Minimum feature linkage significance to retain. [0.0]"}
+		raw_data_path: {help: "Raw data bucket path for outputs; location of raw bucket to upload task outputs to (`<raw_data_bucket>/workflow_execution/cohort_analysis/<cohort_analysis_version>/<run_timestamp>`)."}
+		workflow_info: {help: "UTC timestamp, workflow name, workflow version, and GitHub release; stored in the file-level manifest and final manifest with all saved files."}
+		billing_project: {help: "Billing project to charge GCP costs."}
+		container_registry: {help: "Container registry where workflow Docker images are hosted."}
+		zones: {help: "Space-delimited set of GCP zones to spin up compute in. ['us-central1-c us-central1-f']"}
+	}
+}
+
+task link_peaks_to_genes_by_celltype {
+	input {
+		String cohort_id
+
+		File annotated_mudata_object
+		File celltype_peaks_matrix_adata_object
+		File tss_bed
+
+		String celltype_key
+		Int window
+		Int min_cells
+		Int min_group_cells
+		Float corr_threshold
+		Float pval_threshold
+
+		String raw_data_path
+		Array[Array[String]] workflow_info
+		String billing_project
+		String container_registry
+		String zones
+	}
+
+	Int mem_gb = ceil(size([annotated_mudata_object, celltype_peaks_matrix_adata_object, tss_bed], "GB") * 2 + 20)
+	Int disk_size = ceil(size([annotated_mudata_object, celltype_peaks_matrix_adata_object, tss_bed], "GB") * 4 + 50)
+
+	command <<<
+		set -euo pipefail
+
+		/usr/bin/time -v \
+		link_peaks_to_genes_by_celltype \
+			--mudata-input ~{annotated_mudata_object} \
+			--celltype-peaks-adata-input ~{celltype_peaks_matrix_adata_object} \
+			--tss-bed ~{tss_bed} \
+			--celltype-key ~{celltype_key} \
+			--window ~{window} \
+			--min-cells ~{min_cells} \
+			--min-group-cells ~{min_group_cells} \
+			--corr-threshold ~{corr_threshold} \
+			--pval-threshold ~{pval_threshold} \
+			--mudata-output ~{cohort_id}.linked_by_celltype.h5mu \
+			--links-output ~{cohort_id}.peak_gene_links_by_celltype.csv
+
+		upload_outputs \
+			-b ~{billing_project} \
+			-d ~{raw_data_path} \
+			-i ~{write_tsv(workflow_info)} \
+			-o "~{cohort_id}.peak_gene_links_by_celltype.csv"
+	>>>
+
+	output {
+		File linked_by_celltype_mudata_object = "~{cohort_id}.linked_by_celltype.h5mu"
+		String peak_gene_links_csv = "~{raw_data_path}/~{cohort_id}.peak_gene_links_by_celltype.csv"
+	}
+
+	runtime {
+		docker: "~{container_registry}/sc_multiome_tools:1.0.0"
+		cpu: 4
+		cpuPlatform: "Intel Cascade Lake"
+		memory: "~{mem_gb} GB"
+		disks: "local-disk ~{disk_size} HDD"
+		bootDiskSizeGb: 40
+		zones: zones
+	}
+
+	meta {
+		description: "Computes cell-type-resolved peak-to-gene links by correlating called-peak accessibility against nearby gene expression within each annotated cell type, across the shared paired barcodes. Requires cell_type labels transferred from the RNA modality upstream."
+	}
+
+	parameter_meta {
+		cohort_id: {help: "Name of the cohort; used to name output files."}
+		annotated_mudata_object: {help: "Paired Multiome MuData cell-type labels transferred from the RNA modality onto the shared obs and ATAC side (unmatched cells marked 'Unknown')."}
+		celltype_peaks_matrix_adata_object: {help: "Cell-type peaks matrix AnnData from peak_calling; folded in as the accessibility source so linkage correlates against called peaks rather than raw tiles."}
+		tss_bed: {help: "Gene TSS table derived from the Cell Ranger ARC reference (regions/tss.bed), reshaped to three columns: chrom, tss, gene_name. Gene names must match the RNA modality var_names."}
+		celltype_key: {help: "Column in mdata.obs holding the transferred cell-type label. ['cell_type']"}
+		window: {help: "Distance in bp up- and downstream of each gene's TSS within which peaks are tested for linkage. [500000]"}
+		min_cells: {help: "Minimum number of cells in which a peak must be accessible to be tested. [10]"}
+		min_group_cells: {help: "Minimum number of cells in a cell type for linkage to be computed for that group; smaller groups are skipped as unstable. [50]"}
+		corr_threshold: {help: "Minimum absolute Pearson correlation between peak accessibility and gene expression to retain a link. [0.1]"}
+		pval_threshold: {help: "Maximum p-value to retain a link. [0.05]"}
 		raw_data_path: {help: "Raw data bucket path for outputs; location of raw bucket to upload task outputs to (`<raw_data_bucket>/workflow_execution/cohort_analysis/<cohort_analysis_version>/<run_timestamp>`)."}
 		workflow_info: {help: "UTC timestamp, workflow name, workflow version, and GitHub release; stored in the file-level manifest and final manifest with all saved files."}
 		billing_project: {help: "Billing project to charge GCP costs."}
