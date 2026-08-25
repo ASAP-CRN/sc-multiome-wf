@@ -2,7 +2,7 @@ version 1.0
 
 # Harmonized human PMDBS brain sc/sn Multiome (RNA + ATAC) workflow entrypoint
 
-import "../wf-common/wdl/structs.wdl"
+import "structs.wdl"
 import "../wf-common/wdl/tasks/get_workflow_metadata.wdl" as GetWorkflowMetadata
 import "preprocess/preprocess.wdl" as Preprocess
 import "../sc-rnaseq-wf/workflows/cohort_analysis/cohort_analysis.wdl" as ScRnaCohortAnalysis
@@ -17,6 +17,7 @@ workflow sc_multiome_analysis {
 		# Preprocess
 		File cellranger_arc_reference_data
 		Float cellbender_fpr = 0.0
+		Array[File] vireo_assignment_files
 
 		# Filtering parameters
 		Int pct_counts_mt_max = 10
@@ -108,6 +109,7 @@ workflow sc_multiome_analysis {
 				samples = project.samples,
 				cellranger_arc_reference_data = cellranger_arc_reference_data,
 				cellbender_fpr = cellbender_fpr,
+				vireo_assignment_files = vireo_assignment_files,
 				workflow_name = workflow_name,
 				workflow_version = workflow_version,
 				workflow_release = workflow_release,
@@ -653,6 +655,7 @@ workflow sc_multiome_analysis {
 		projects: {help: "The project ID, set of samples and their associated reads and metadata, output bucket locations, sc data type, and whether or not to run project-level cohort analysis."}
 		cellranger_arc_reference_data: {help: "CellRanger ARC reference data; see https://www.10xgenomics.com/support/software/cell-ranger-arc/downloads."}
 		cellbender_fpr: {help: "Cellbender false positive rate. [0.0]"}
+		vireo_assignment_files: {help: "Vireo donor assignment CSV with columns: donor_id, sample, raw_bc. Covers all donors in the pool."}
 		pct_counts_mt_max: {help: "Maximum percentage of mitochondrial gene counts allowed per cell. [10]"}
 		doublet_score_max: {help: "Maximum doublet detection score threshold. [0.2]"}
 		total_counts_limits: {help: "Minimum and maximum total UMI (unique molecular identifier) counts per cell. [100, 100000]"}

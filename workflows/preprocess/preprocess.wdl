@@ -2,10 +2,13 @@ version 1.0
 
 # Generate a preprocessed AnnData object
 
-import "../../wf-common/wdl/structs.wdl"
+import "../structs.wdl"
 import "../../sc-rnaseq-wf/workflows/preprocess/preprocess.wdl" as ScRnaPreprocess
 	alias Project as RnaProject
 	alias Sample as RnaSample
+import "../../sc-atacseq-wf/workflows/preprocess/preprocess.wdl" as ScAtacPreprocess
+	alias Project as AtacProject
+	alias Sample as AtacSample
 
 workflow preprocess {
 	input {
@@ -16,6 +19,7 @@ workflow preprocess {
 
 		File cellranger_arc_reference_data
 		Float cellbender_fpr
+		Array[File] vireo_assignment_files
 
 		String workflow_name
 		String workflow_version
@@ -30,8 +34,12 @@ workflow preprocess {
 	# Task and subworkflow versions
 	String sub_workflow_name = "preprocess"
 	String cellranger_arc_task_version = "1.0.0"
-	# TODO This must match https://github.com/ASAP-CRN/sc-rnaseq-wf/blob/main/workflows/preprocess/preprocess.wdl
+	# TODO This must match https://github.com/ASAP-CRN/sc-rnaseq-wf/blob/main/workflows/preprocess/preprocess.wdl and https://github.com/ASAP-CRN/sc-atacseq-wf/blob/main/workflows/preprocess/preprocess.wdl
 	String cellbender_task_version = "1.0.1"
+	String rna_demux_counts_task_version = "1.0.0"
+	String rna_demux_adata_task_version = "1.0.0"
+	String atac_demux_fragments_task_version = "1.0.0"
+	String atac_demux_adata_task_version = "1.0.0"
 	String rna_adata_task_version = "1.2.0"
 	String atac_adata_task_version = "1.0.0"
 
@@ -40,21 +48,41 @@ workflow preprocess {
 	String workflow_raw_data_path_prefix = "~{raw_data_path_prefix}/~{sub_workflow_name}"
 	String cellranger_arc_raw_data_path = "~{workflow_raw_data_path_prefix}/cellranger_arc/~{cellranger_arc_task_version}"
 	String rna_cellbender_raw_data_path = "~{workflow_raw_data_path_prefix}/rna/remove_technical_artifacts/~{cellbender_task_version}"
+	String rna_demux_counts_raw_data_path = "~{workflow_raw_data_path_prefix}/rna/split_demux_counts/~{rna_demux_counts_task_version}"
+	String rna_demux_adata_raw_data_path = "~{workflow_raw_data_path_prefix}/rna/counts_to_adata/~{rna_demux_adata_task_version}"
+	String atac_demux_fragments_raw_data_path = "~{workflow_raw_data_path_prefix}/atac/split_demux_fragments/~{atac_demux_fragments_task_version}"
+	String atac_demux_adata_raw_data_path = "~{workflow_raw_data_path_prefix}/atac/fragments_to_adata/~{atac_demux_adata_task_version}"
 	String rna_adata_raw_data_path = "~{workflow_raw_data_path_prefix}/rna/counts_to_adata/~{rna_adata_task_version}"
-	String atac_adata_raw_data_path = "~{workflow_raw_data_path_prefix}/atac/counts_to_adata/~{atac_adata_task_version}"
+	String atac_adata_raw_data_path = "~{workflow_raw_data_path_prefix}/atac/fragments_to_adata/~{atac_adata_task_version}"
 
 	scatter (sample_object in samples) {
-		String cellranger_arc_count_output = "~{cellranger_arc_raw_data_path}/~{dataset_id}.~{sample_object.sample_id}.raw_feature_bc_matrix.h5"
-		String rna_cellbender_count_output = "~{rna_cellbender_raw_data_path}/~{dataset_id}.~{sample_object.sample_id}.cellbender.h5"
+		Boolean is_multiplexed = length(sample_object.multiplexed_samples) > 0
+
+		String cellranger_arc_counts_output = "~{cellranger_arc_raw_data_path}/~{dataset_id}.~{sample_object.sample_id}.raw_feature_bc_matrix.h5"
+		String rna_cellbender_counts_output = "~{rna_cellbender_raw_data_path}/~{dataset_id}.~{sample_object.sample_id}.cellbender.h5"
 		String rna_initial_adata_object_output = "~{rna_adata_raw_data_path}/~{dataset_id}.~{sample_object.sample_id}.cleaned_unfiltered.h5ad"
 		String atac_initial_adata_object_output = "~{atac_adata_raw_data_path}/~{dataset_id}.~{sample_object.sample_id}.cleaned_unfiltered.h5ad"
+	
+		scatter (mux_sample_object in sample_object.multiplexed_samples) {
+			String mux_dataset_sample_pool_id = "~{dataset_id}.~{mux_sample_object.sample_id}.~{sample_object.sample_id}"
+			String source_subject_id = mux_sample_object.source_subject_id
+			String asap_subject_id = mux_sample_object.asap_subject_id
+			String mux_sample_id = mux_sample_object.sample_id
+			String mux_batch = select_first([mux_sample_object.batch])
+			String mux_sex = select_first([mux_sample_object.sex])
+
+			String rna_demux_counts_output = if is_multiplexed then "~{rna_demux_counts_raw_data_path}/~{mux_dataset_sample_pool_id}.cellbender.h5" else "NA"
+			String rna_demux_initial_adata_object_output = if is_multiplexed then "~{rna_demux_adata_raw_data_path}/~{mux_dataset_sample_pool_id}.cleaned_unfiltered.h5ad" else "NA"
+			String atac_demux_fragments_output = if is_multiplexed then "~{atac_demux_fragments_raw_data_path}/~{mux_dataset_sample_pool_id}.fragments.tsv.gz" else "NA"
+			String atac_demux_initial_adata_object_output = if is_multiplexed then "~{atac_demux_adata_raw_data_path}/~{mux_dataset_sample_pool_id}.cleaned_unfiltered.h5ad" else "NA"
+		}
 	}
 
 	# For each sample, outputs an array of true/false: [cellranger_arc_counts_complete, rna_remove_technical_artifacts_complete, rna_initial_adata_object_complete, atac_initial_adata_object_complete]
-	call check_output_files_exist {
+	call check_output_files_exist as check_pool_level_files_exist {
 		input:
-			cellranger_arc_count_output_files = cellranger_arc_count_output,
-			rna_remove_technical_artifacts_output_files = rna_cellbender_count_output,
+			cellranger_arc_counts_output_files = cellranger_arc_counts_output,
+			rna_remove_technical_artifacts_output_files = rna_cellbender_counts_output,
 			rna_initial_adata_object_output_files = rna_initial_adata_object_output,
 			atac_initial_adata_object_output_files = atac_initial_adata_object_output,
 			billing_project = billing_project,
@@ -67,7 +95,7 @@ workflow preprocess {
 		String dataset_sample_id = "~{dataset_id}.~{sample.sample_id}"
 		Array[String] project_sample_id = [team_id, sample.sample_id, dataset_doi_url]
 
-		String cellranger_arc_count_complete = check_output_files_exist.sample_preprocessing_complete[index][0]
+		String cellranger_arc_counts_complete = check_output_files_exist.sample_preprocessing_complete[index][0]
 		String rna_cellbender_remove_background_complete = check_output_files_exist.sample_preprocessing_complete[index][1]
 		String rna_initial_adata_object_complete = check_output_files_exist.sample_preprocessing_complete[index][2]
 		String atac_initial_adata_object_complete = check_output_files_exist.sample_preprocessing_complete[index][3]
@@ -89,7 +117,7 @@ workflow preprocess {
 		String cellranger_arc_atac_peak_annotation_tsv = "~{cellranger_arc_raw_data_path}/~{dataset_sample_id}.atac_peak_annotation.tsv"
 		String cellranger_arc_feature_linkage_bedpe = "~{cellranger_arc_raw_data_path}/~{dataset_sample_id}.feature_linkage.bedpe"
 
-		if (cellranger_arc_count_complete == "false") {
+		if (cellranger_arc_counts_complete == "false") {
 			call cellranger_arc_count {
 				input:
 					dataset_sample_id = dataset_sample_id,
@@ -123,7 +151,7 @@ workflow preprocess {
 		File atac_cut_sites_bigwig_output = select_first([cellranger_arc_count.atac_cut_sites_bigwig, cellranger_arc_atac_cut_sites_bigwig]) #!FileCoercion
 		File atac_peak_annotation_tsv_output = select_first([cellranger_arc_count.atac_peak_annotation_tsv, cellranger_arc_atac_peak_annotation_tsv]) #!FileCoercion
 		File feature_linkage_bedpe_output = select_first([cellranger_arc_count.feature_linkage_bedpe, cellranger_arc_feature_linkage_bedpe]) #!FileCoercion
-	
+
 		String cellbender_report_html = "~{rna_cellbender_raw_data_path}/~{dataset_sample_id}.cellbender_report.html"
 		String cellbender_removed_background_counts = "~{rna_cellbender_raw_data_path}/~{dataset_sample_id}.cellbender.h5"
 		String cellbender_filtered_removed_background_counts = "~{rna_cellbender_raw_data_path}/~{dataset_sample_id}.cellbender_filtered.h5"
@@ -156,49 +184,150 @@ workflow preprocess {
 		File metrics_csv_output = select_first([rna_remove_technical_artifacts.metrics_csv, cellbender_metrics_csv]) #!FileCoercion
 		File posterior_probability_output = select_first([rna_remove_technical_artifacts.posterior_probability, cellbender_posterior_probability]) #!FileCoercion
 
-		String preprocessed_rna_adata_object = "~{rna_adata_raw_data_path}/~{dataset_sample_id}.cleaned_unfiltered.h5ad"
-
-		if (rna_initial_adata_object_complete == "false") {
-			call ScRnaPreprocess.counts_to_adata as rna_counts_to_adata {
+		if (is_multiplexed[index]) {
+			# For each sample, outputs an array of true/false: [rna_demux_counts_complete, rna_demux_initial_adata_object_complete, atac_demux_fragments_complete, atac_demux_initial_adata_object_complete]
+			call check_output_files_exist as check_sample_level_files_exist {
 				input:
-					dataset_sample_id = dataset_sample_id,
-					sample_id = sample.sample_id,
-					batch = select_first([sample.batch]),
-					sex = select_first([sample.sex]),
-					team_id = team_id,
-					dataset_id = dataset_id,
-					cellbender_counts = removed_background_counts_output,
-					raw_data_path = rna_adata_raw_data_path,
-					workflow_info = workflow_info,
+					rna_demux_counts_files = rna_demux_counts_output,
+					rna_demux_initial_adata_object_files = rna_demux_initial_adata_object_output,
+					atac_demux_fragments_files = atac_demux_fragments_output,
+					atac_demux_initial_adata_object_files = atac_demux_initial_adata_object_output,
 					billing_project = billing_project,
-					container_registry = container_registry,
 					zones = zones
+			}
+
+			String rna_demux_counts_complete = check_output_files_exist.sample_preprocessing_complete[index][0]
+			String rna_demux_initial_adata_object_complete = check_output_files_exist.sample_preprocessing_complete[index][1]
+			String atac_demux_fragments_complete = check_output_files_exist.sample_preprocessing_complete[index][2]
+			String atac_demux_initial_adata_object_complete = check_output_files_exist.sample_preprocessing_complete[index][3]
+
+			if (rna_demux_counts_complete == "false") {
+				call rna_demux_counts {
+					input:
+						dataset_id = dataset_id,
+						pool_id = sample.sample_id,
+						source_subject_ids = source_subject_id[index],
+						sample_ids = mux_sample_id[index],
+						cellbender_counts = removed_background_counts_output,
+						vireo_assignment_files = vireo_assignment_files,
+						raw_data_path = rna_demux_raw_data_path,
+						workflow_info = workflow_info,
+						billing_project = billing_project,
+						container_registry = container_registry,
+						zones = zones
+				}
+			}
+
+			Array[File] sample_demux_cellbender_counts_output = select_first([rna_demux.sample_demux_cellbender_counts, rna_demux_counts_output]) #!FileCoercion
+
+			if (atac_demux_fragments_complete == "false") {
+				call ScAtacPreprocess.split_demux_fragments as atac_split_demux_fragments {
+					input:
+						dataset_id = dataset_id,
+						pool_id = sample.sample_id,
+						source_subject_ids = source_subject_id[index],
+						sample_ids = mux_sample_id[index],
+						cellranger_arc_fragments = cellranger_arc_atac_fragments_tsv_gz,
+						cellranger_arc_reference_chrom_sizes = cellranger_arc_reference_chrom_sizes,
+						vireo_assignment_files = vireo_assignment_files,
+						raw_data_path = atac_demux_raw_data_path,
+						workflow_info = workflow_info,
+						billing_project = billing_project,
+						container_registry = container_registry,
+						zones = zones
+				}
+			}
+
+			Array[File] sample_demux_fragments_tsv_gz_output = select_first([split_demux_fragments.sample_split_fragments_tsv_gz, atac_demux_fragments_output]) #!FileCoercion
+
+			scatter (mux_sample_index in range(length(sample.multiplexed_samples))) {
+				if (rna_demux_initial_adata_object_complete == "false") {
+					call counts_to_adata as rna_demux_counts_to_adata {
+						input:
+							team_id = team_id,
+							dataset_id = dataset_id,
+							pool_id = sample.sample_id,
+							source_subject_id = source_subject_id[mux_sample_index],
+							subject_id = asap_subject_id[mux_sample_index],
+							sample_id = mux_sample_id[mux_sample_index],
+							batch = mux_batch[mux_sample_index],
+							sex = mux_sex[mux_sample_index],
+							cellbender_counts = sample_demux_cellbender_counts_output[mux_sample_index],
+							raw_data_path = rna_demux_adata_raw_data_path,
+							workflow_info = workflow_info,
+							billing_project = billing_project,
+							container_registry = container_registry,
+							zones = zones
+					}
+				}
+
+				File preprocessed_rna_demux_adata_object_output = select_first([rna_demux_counts_to_adata.initial_adata_object, rna_demux_initial_adata_object_output]) #!FileCoercion
+
+				if (atac_demux_initial_adata_object_complete == "false") {
+					call fragments_to_adata as atac_demux_fragments_to_adata {
+						input:
+							team_id = team_id,
+							dataset_id = dataset_id,
+							pool_id = sample.sample_id,
+							source_subject_id = source_subject_id[mux_sample_index],
+							subject_id = asap_subject_id[mux_sample_index],
+							sample_id = mux_sample_id[mux_sample_index],
+							batch = mux_batch[mux_sample_index],
+							sex = mux_sex[mux_sample_index],
+							fragments_tsv_gz = atac_fragments_tsv_gz_output,
+							raw_data_path = atac_demux_adata_raw_data_path,
+							workflow_info = workflow_info,
+							billing_project = billing_project,
+							container_registry = container_registry,
+							zones = zones
+					}
+				}
+
+				File preprocessed_atac_demux_adata_object_output = select_first([atac_demux_fragments_to_adata.initial_adata_object, atac_demux_initial_adata_object_output]) #!FileCoercion
 			}
 		}
 
-		File preprocessed_rna_adata_object_output = select_first([rna_counts_to_adata.initial_adata_object, preprocessed_rna_adata_object]) #!FileCoercion
+		if (! is_multiplexed[index]) {
+			String preprocessed_rna_adata_object = "~{rna_adata_raw_data_path}/~{dataset_sample_id}.cleaned_unfiltered.h5ad"
+
+			if (rna_initial_adata_object_complete == "false") {
+				call counts_to_adata as rna_counts_to_adata {
+					input:
+						team_id = team_id,
+						dataset_id = dataset_id,
+						sample_id = sample.sample_id,
+						batch = select_first([sample.batch]),
+						sex = select_first([sample.sex]),
+						cellbender_counts = removed_background_counts_output,
+						raw_data_path = rna_adata_raw_data_path,
+						workflow_info = workflow_info,
+						billing_project = billing_project,
+						container_registry = container_registry,
+						zones = zones
+				}
+			}
+
+			File preprocessed_rna_adata_object_output = select_first([rna_counts_to_adata.initial_adata_object, rna_initial_adata_object_output]) #!FileCoercion
 		
-		String preprocessed_atac_adata_object = "~{atac_adata_raw_data_path}/~{dataset_sample_id}.cleaned_unfiltered.h5ad"
+			if (atac_initial_adata_object_complete == "false") {
+				call fragments_to_adata as atac_fragments_to_adata {
+					input:
+						team_id = team_id,
+						dataset_id = dataset_id,
+						sample_id = sample.sample_id,
+						batch = select_first([sample.batch]),
+						sex = select_first([sample.sex]),
+						fragments_tsv_gz = atac_fragments_tsv_gz_output,
+						raw_data_path = atac_adata_raw_data_path,
+						workflow_info = workflow_info,
+						billing_project = billing_project,
+						container_registry = container_registry,
+						zones = zones
+				}
 
-		if (atac_initial_adata_object_complete == "false") {
-			call atac_counts_to_adata {
-				input:
-					dataset_sample_id = dataset_sample_id,
-					sample_id = sample.sample_id,
-					batch = select_first([sample.batch]),
-					sex = select_first([sample.sex]),
-					team_id = team_id,
-					dataset_id = dataset_id,
-					fragments_tsv_gz = atac_fragments_tsv_gz_output,
-					raw_data_path = atac_adata_raw_data_path,
-					workflow_info = workflow_info,
-					billing_project = billing_project,
-					container_registry = container_registry,
-					zones = zones
+			File preprocessed_atac_adata_object_output = select_first([atac_counts_to_adata.initial_adata_object, atac_demux_initial_adata_object_output]) #!FileCoercion
 			}
 		}
-
-		File preprocessed_atac_adata_object_output = select_first([atac_counts_to_adata.initial_adata_object, preprocessed_atac_adata_object]) #!FileCoercion
 	}
 
 	output {
@@ -234,7 +363,7 @@ workflow preprocess {
 		Array[File] posterior_probability = posterior_probability_output #!FileCoercion
 
 		# RNA - AnnData counts
-		Array[File] rna_initial_adata_object = preprocessed_rna_adata_object_output #!FileCoercion
+		Array[File?] rna_initial_adata_object = preprocessed_rna_adata_object_output #!FileCoercion
 
 		# ATAC - AnnData counts
 		Array[File] atac_initial_adata_object = preprocessed_atac_adata_object_output #!FileCoercion
@@ -251,6 +380,7 @@ workflow preprocess {
 		samples: {help: "An array of Sample struct, set of samples and their associated reads and metadata information."}
 		cellranger_arc_reference_data: {help: "CellRanger ARC reference data; see https://www.10xgenomics.com/support/software/cell-ranger-arc/downloads."}
 		cellbender_fpr: {help: "Cellbender false positive rate. [0.0]"}
+		vireo_assignment_files: {help: "Vireo donor assignment CSV with columns: donor_id, sample, raw_bc. Covers all donors in the pool."}
 		workflow_name: {help: "Workflow name; stored in the file-level manifest and final manifest with all saved files."}
 		workflow_version: {help: "Workflow version; stored in the file-level manifest and final manifest with all saved files."}
 		workflow_release: {help: "GitHub release; stored in the file-level manifest and final manifest with all saved files."}
@@ -265,6 +395,7 @@ workflow preprocess {
 task check_output_files_exist {
 	input {
 		Array[String] cellranger_arc_count_output_files
+		Array[String] rna_demux_output_files
 		Array[String] rna_remove_technical_artifacts_output_files
 		Array[String] rna_initial_adata_object_output_files
 		Array[String] atac_initial_adata_object_output_files
@@ -278,23 +409,30 @@ task check_output_files_exist {
 
 		while read -r output_files || [[ -n "${output_files}" ]]; do
 			cellranger_arc_counts_file=$(echo "${output_files}" | cut -f 1)
-			rna_cellbender_counts_file=$(echo "${output_files}" | cut -f 2)
-			rna_initial_adata_object_file=$(echo "${output_files}" | cut -f 3)
-			atac_initial_adata_object_file=$(echo "${output_files}" | cut -f 4)
+			rna_demux_file=$(echo "${output_files}" | cut -f 2)
+			rna_cellbender_counts_file=$(echo "${output_files}" | cut -f 3)
+			rna_initial_adata_object_file=$(echo "${output_files}" | cut -f 4)
+			atac_initial_adata_object_file=$(echo "${output_files}" | cut -f 5)
 
 			if gcloud storage ls --billing-project=~{billing_project} "${cellranger_arc_counts_file}"; then
-				# Check RNA outputs
-				if gcloud storage ls --billing-project=~{billing_project} "${rna_cellbender_counts_file}"; then
-					if gcloud storage ls --billing-project=~{billing_project} "${rna_initial_adata_object_file}"; then
-						# If we find all RNA outputs, don't rerun anything on the RNA side
-						rna_result="true\ttrue\ttrue"
+				# "NA" means the sample is not multiplexed, so there is nothing to demultiplex
+				if [[ "${rna_demux_file}" == "NA" ]] || gcloud storage ls --billing-project=~{billing_project} "${rna_demux_file}"; then
+					# Check RNA outputs
+					if gcloud storage ls --billing-project=~{billing_project} "${rna_cellbender_counts_file}"; then
+						if gcloud storage ls --billing-project=~{billing_project} "${rna_initial_adata_object_file}"; then
+							# If we find all RNA outputs, don't rerun anything on the RNA side
+							rna_result="true\ttrue\ttrue\true"
+						else
+							# If we find cellranger, demux, and cellbender outputs, but don't find RNA adata outputs, just rerun counts_to_adata
+							rna_result="true\ttrue\ttrue\tfalse"
+						fi
 					else
-						# If we find cellranger and cellbender outputs, but don't find RNA adata outputs, just rerun counts_to_adata
-						rna_result="true\ttrue\tfalse"
+						# If we find cellranger and demux, but not cellbender outputs, it does not matter if adata objects exist, so run (or rerun) both cellbender and counts_to_adata
+						rna_result="true\ttrue\tfalse\tfalse"
 					fi
 				else
-					# If we find cellranger, but not cellbender outputs, it does not matter if adata objects exist, so run (or rerun) both cellbender and counts_to_adata
-					rna_result="true\tfalse\tfalse"
+					# If we find cellranger, but not demux outputs, it does not matter if adata objects exist, so run (or rerun) demux, cellbender, and counts_to_adata
+					rna_result="true\tfalse\tfalse\tfalse"
 				fi
 
 				# Check ATAC outputs
@@ -307,9 +445,9 @@ task check_output_files_exist {
 				echo -e "${rna_result}\t${atac_result}" >> sample_preprocessing_complete.tsv
 			else
 				# If we don't find cellranger output, we must also need to run (or rerun) preprocessing for both RNA and ATAC
-				echo -e "false\tfalse\tfalse\tfalse" >> sample_preprocessing_complete.tsv
+				echo -e "false\tfalse\tfalse\tfalse\tfalse" >> sample_preprocessing_complete.tsv
 			fi
-		done < <(paste ~{write_lines(cellranger_arc_count_output_files)} ~{write_lines(rna_remove_technical_artifacts_output_files)} ~{write_lines(rna_initial_adata_object_output_files)} ~{write_lines(atac_initial_adata_object_output_files)})
+		done < <(paste ~{write_lines(cellranger_arc_count_output_files)} ~{write_lines(rna_demux_output_files)} ~{write_lines(rna_remove_technical_artifacts_output_files)} ~{write_lines(rna_initial_adata_object_output_files)} ~{write_lines(atac_initial_adata_object_output_files)})
 	>>>
 
 	output {
@@ -488,14 +626,188 @@ task cellranger_arc_count {
 	}
 }
 
-task atac_counts_to_adata {
+task rna_demux_counts {
 	input {
-		String dataset_sample_id
+		String dataset_id
+		String pool_id
+		Array[String] source_subject_ids
+		Array[String] sample_ids
+
+		File cellbender_counts
+		Array[File] vireo_assignment_files
+
+		String raw_data_path
+		Array[Array[String]] workflow_info
+		String billing_project
+		String container_registry
+		String zones
+	}
+
+	Int disk_size = ceil(size([cellbender_counts, vireo_assignment_files], "GB") * 2 + 20)
+
+	command <<<
+		set -euo pipefail
+
+		mkdir cellbender_counts_output
+		mkdir renamed_cellbender_counts_output
+
+		# TODO
+		/usr/bin/time -v \
+		demux
+
+		paste \
+			~{write_lines(source_subject_ids)} \
+			~{write_lines(sample_ids)} \
+		> metadata.tsv
+
+		duplicates=$(cut -f2 metadata.tsv | sort | uniq -d)
+		if [[ -n "${duplicates}" ]]; then
+			echo "[ERROR] Duplicate sample_id found for pool ~{pool_id}: ${duplicates}" >&2
+			exit 1
+		fi
+
+		# Rename outputs with ASAP_dataset_id + ASAP_sample_id + pool_id
+		while IFS=$'\t' read -r source_subject_id sample_id; do
+			ln "cellbender_counts_output/${source_subject_id}.cellbender.h5" "renamed_cellbender_counts_output/~{dataset_id}.${sample_id}.~{pool_id}.cellbender.h5"
+		done < metadata.tsv
+
+		upload_args=()
+		for f in cellbender_counts_output/*; do
+			upload_args+=(-o "${f}")
+		done
+
+		upload_outputs \
+			-b ~{billing_project} \
+			-d ~{raw_data_path} \
+			-i ~{write_tsv(workflow_info)} \
+			"${upload_args[@]}"
+
+		# shellcheck disable=SC2012
+		ls renamed_cellbender_counts_output | sed "s|^|~{raw_data_path}/|" | grep -v "meta.tsv$" > sample_cellbender_counts_filenames.txt
+	>>>
+
+	output {
+		Array[File] subject_demux_cellbender_counts = glob("cellbender_counts_output/*.cellbender.h5")
+		Array[String] sample_demux_cellbender_counts = read_lines("sample_cellbender_counts_filenames.txt")
+	}
+
+	runtime {
+		docker: "~{container_registry}/sc_multiome_tools:1.0.0"
+		cpu: 4
+		cpuPlatform: "Intel Cascade Lake"
+		memory: "32 GB"
+		disks: "local-disk ~{disk_size} HDD"
+		preemptible: 3
+		bootDiskSizeGb: 40
+		zones: zones
+	}
+
+	meta {
+		description: ""
+	}
+
+	parameter_meta {
+		dataset_id: {help: "Generated ASAP dataset ID; stored in the AnnData objects."}
+		pool_id: {help: "Generated ASAP pool ID; used to name output files."}
+		source_subject_ids: {help: "An array of provided source subject IDs; used for mapping."}
+		sample_ids: {help: "An array of generated ASAP sample ID; used for mapping."}
+		cellbender_counts: {help: ""}
+		vireo_assignment_files: {help: "Vireo donor assignment CSV with columns: donor_id, sample, raw_bc. Covers all donors in the pool."}
+		raw_data_path: {help: "Raw data bucket path for counts to adata outputs; location of raw bucket to upload task outputs to (`<raw_data_bucket>/workflow_execution/preprocess/rna/demux/<rna_demux_task_version>`)."}
+		workflow_info: {help: "UTC timestamp, workflow name, workflow version, and GitHub release; stored in the file-level manifest and final manifest with all saved files."}
+		billing_project: {help: "Billing project to charge GCP costs."}
+		container_registry: {help: "Container registry where workflow Docker images are hosted."}
+		zones: {help: "Space-delimited set of GCP zones to spin up compute in. ['us-central1-c us-central1-f']"}
+	}
+}
+
+task counts_to_adata {
+	input {
+		String team_id
+		String dataset_id
+		String? pool_id
+		String? source_subject_id
+		String? subject_id
 		String sample_id
 		String batch
 		String sex
+
+		File sample_demux_cellbender_counts
+
+		String raw_data_path
+		Array[Array[String]] workflow_info
+		String billing_project
+		String container_registry
+		String zones
+	}
+
+	Int disk_size = ceil(size(sample_demux_cellbender_counts, "GB") * 2 + 20)
+
+	command <<<
+		set -euo pipefail
+
+		/usr/bin/time -v \
+		counts_to_adata \
+			--cellranger-arc-fragments ~{sample_demux_cellbender_counts} \
+			--sample-id ~{sample_id} \
+			--batch ~{batch} \
+			--sex ~{sex} \
+			--team ~{team_id} \
+			--dataset ~{dataset_id} \
+			--adata-output "~{dataset_id}.~{sample_id}.~{pool_id}.cleaned_unfiltered.h5ad"
+
+		upload_outputs \
+			-b ~{billing_project} \
+			-d ~{raw_data_path} \
+			-i ~{write_tsv(workflow_info)} \
+			-o "~{dataset_id}.~{sample_id}.~{pool_id}.cleaned_unfiltered.h5ad"
+	>>>
+
+	output {
+		String initial_adata_object = "~{raw_data_path}/~{dataset_id}.~{sample_id}.~{pool_id}.cleaned_unfiltered.h5ad"
+	}
+
+	runtime {
+		docker: "~{container_registry}/sc_multiome_tools:1.0.0"
+		cpu: 4
+		cpuPlatform: "Intel Cascade Lake"
+		memory: "32 GB"
+		disks: "local-disk ~{disk_size} HDD"
+		preemptible: 3
+		bootDiskSizeGb: 40
+		zones: zones
+	}
+
+	meta {
+		description: "Converts Cell Ranger ARC counts into AnnData objects using SnapATAC2."
+	}
+
+	parameter_meta {
+		dataset_sample_id: {help: "Generated ASAP dataset ID and sample ID; stored in the AnnData objects."}
+		sample_id: {help: "Generated ASAP sample ID; stored in the AnnData objects and used to name output files."}
+		batch: {help: "The sample's batch; stored in the AnnData objects."}
+		sex: {help: "The sample's sex; stored in the AnnData objects."}
+		team_id: {help: "Name of the CRN Team; stored in the AnnData objects."}
+		dataset_id: {help: "Generated ASAP dataset ID; stored in the AnnData objects."}
+		sample_demux_cellbender_counts: {help: "."}
+		raw_data_path: {help: "Raw data bucket path for counts to adata outputs; location of raw bucket to upload task outputs to (`<raw_data_bucket>/workflow_execution/preprocess/atac/counts_to_adata/<atac_adata_task_version>`)."}
+		workflow_info: {help: "UTC timestamp, workflow name, workflow version, and GitHub release; stored in the file-level manifest and final manifest with all saved files."}
+		billing_project: {help: "Billing project to charge GCP costs."}
+		container_registry: {help: "Container registry where workflow Docker images are hosted."}
+		zones: {help: "Space-delimited set of GCP zones to spin up compute in. ['us-central1-c us-central1-f']"}
+	}
+}
+
+task fragments_to_adata {
+	input {
 		String team_id
 		String dataset_id
+		String? pool_id
+		String? source_subject_id
+		String? subject_id
+		String sample_id
+		String batch
+		String sex
 
 		File fragments_tsv_gz
 
@@ -512,24 +824,24 @@ task atac_counts_to_adata {
 		set -euo pipefail
 
 		/usr/bin/time -v \
-		counts_to_adata \
+		fragments_to_adata \
 			--cellranger-arc-fragments ~{fragments_tsv_gz} \
 			--sample-id ~{sample_id} \
 			--batch ~{batch} \
 			--sex ~{sex} \
 			--team ~{team_id} \
 			--dataset ~{dataset_id} \
-			--adata-output ~{dataset_sample_id}.cleaned_unfiltered.h5ad
+			--adata-output "~{dataset_id}.~{sample_id}.~{pool_id}..cleaned_unfiltered.h5ad"
 
 		upload_outputs \
 			-b ~{billing_project} \
 			-d ~{raw_data_path} \
 			-i ~{write_tsv(workflow_info)} \
-			-o "~{dataset_sample_id}.cleaned_unfiltered.h5ad"
+			-o "~{dataset_id}.~{sample_id}.~{pool_id}..cleaned_unfiltered.h5ad"
 	>>>
 
 	output {
-		String initial_adata_object = "~{raw_data_path}/~{dataset_sample_id}.cleaned_unfiltered.h5ad"
+		String initial_adata_object = "~{raw_data_path}/~{dataset_id}.~{sample_id}.~{pool_id}..cleaned_unfiltered.h5ad"
 	}
 
 	runtime {
