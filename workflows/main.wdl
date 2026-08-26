@@ -18,7 +18,7 @@ workflow sc_multiome_analysis {
 		File cellranger_arc_reference_data
 		File cellranger_arc_reference_chrom_sizes
 		Float cellbender_fpr = 0.0
-		Array[File] vireo_assignment_files
+		Array[File]? vireo_assignment_files
 
 		# Filtering parameters
 		Int pct_counts_mt_max = 10

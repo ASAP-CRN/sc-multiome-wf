@@ -20,7 +20,7 @@ workflow preprocess {
 		File cellranger_arc_reference_data
 		File cellranger_arc_reference_chrom_sizes
 		Float cellbender_fpr
-		Array[File] vireo_assignment_files
+		Array[File]? vireo_assignment_files
 
 		String workflow_name
 		String workflow_version
@@ -214,7 +214,7 @@ workflow preprocess {
 						source_subject_ids = source_subject_id[index],
 						sample_ids = mux_sample_id[index],
 						cellbender_counts = removed_background_counts_output,
-						vireo_assignment_files = vireo_assignment_files,
+						vireo_assignment_files = select_first([vireo_assignment_files]),
 						raw_data_path = rna_demux_counts_raw_data_path,
 						workflow_info = workflow_info,
 						billing_project = billing_project,
@@ -233,7 +233,7 @@ workflow preprocess {
 						sample_ids = mux_sample_id[index],
 						cellranger_atac_fragments = cellranger_arc_atac_fragments_tsv_gz, #!FileCoercion
 						cellranger_atac_reference_chrom_sizes = cellranger_arc_reference_chrom_sizes,
-						vireo_assignment_files = vireo_assignment_files,
+						vireo_assignment_files = select_first([vireo_assignment_files]),
 						raw_data_path = atac_demux_fragments_raw_data_path,
 						workflow_info = workflow_info,
 						billing_project = billing_project,
