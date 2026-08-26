@@ -16,6 +16,7 @@ workflow sc_multiome_analysis {
 
 		# Preprocess
 		File cellranger_arc_reference_data
+		File cellranger_arc_reference_chrom_sizes
 		Float cellbender_fpr = 0.0
 		Array[File] vireo_assignment_files
 
@@ -108,6 +109,7 @@ workflow sc_multiome_analysis {
 				dataset_doi_url = project.asap_dataset_doi_url,
 				samples = project.samples,
 				cellranger_arc_reference_data = cellranger_arc_reference_data,
+				cellranger_arc_reference_chrom_sizes = cellranger_arc_reference_chrom_sizes,
 				cellbender_fpr = cellbender_fpr,
 				vireo_assignment_files = vireo_assignment_files,
 				workflow_name = workflow_name,
@@ -160,7 +162,7 @@ workflow sc_multiome_analysis {
 				input:
 					cohort_id = project.asap_team_id,
 					project_sample_ids = preprocess.project_sample_ids,
-					preprocessed_adata_objects = preprocess.rna_initial_adata_object,
+					preprocessed_adata_objects = flatten([preprocess.rna_initial_demux_adata_object, preprocess.rna_initial_adata_object]),
 					preprocessing_output_file_paths = rna_preprocessing_output_file_paths,
 					pct_counts_mt_max = pct_counts_mt_max,
 					doublet_score_max = doublet_score_max,
@@ -194,7 +196,7 @@ workflow sc_multiome_analysis {
 				input:
 					cohort_id = project.asap_team_id,
 					project_sample_ids = preprocess.project_sample_ids,
-					preprocessed_adata_objects = preprocess.atac_initial_adata_object,
+					preprocessed_adata_objects = flatten([preprocess.atac_initial_demux_adata_object, preprocess.atac_initial_adata_object]),
 					preprocessing_output_file_paths = atac_preprocessing_output_file_paths,
 					allen_brain_mmc_precomputed_stats_h5 = allen_brain_mmc_precomputed_stats_h5,
 					n_top_genes = n_top_genes,
@@ -267,7 +269,7 @@ workflow sc_multiome_analysis {
 			input:
 				cohort_id = cohort_id,
 				project_sample_ids = flatten(preprocess.project_sample_ids),
-				preprocessed_adata_objects = flatten(preprocess.rna_initial_adata_object),
+				preprocessed_adata_objects = flatten(flatten([preprocess.rna_initial_demux_adata_object, preprocess.rna_initial_adata_object])),
 				preprocessing_output_file_paths = flatten(rna_preprocessing_output_file_paths),
 				pct_counts_mt_max = pct_counts_mt_max,
 				doublet_score_max = doublet_score_max,
@@ -301,7 +303,7 @@ workflow sc_multiome_analysis {
 			input:
 				cohort_id = cohort_id,
 				project_sample_ids = flatten(preprocess.project_sample_ids),
-				preprocessed_adata_objects = flatten(preprocess.atac_initial_adata_object),
+				preprocessed_adata_objects = flatten(flatten([preprocess.atac_initial_demux_adata_object, preprocess.atac_initial_adata_object])),
 				preprocessing_output_file_paths = flatten(atac_preprocessing_output_file_paths),
 				allen_brain_mmc_precomputed_stats_h5 = allen_brain_mmc_precomputed_stats_h5,
 				n_top_genes = n_top_genes,
@@ -398,8 +400,8 @@ workflow sc_multiome_analysis {
 		Array[Array[File]] cellbender_log = preprocess.log
 		Array[Array[File]] cellbender_metrics_csv = preprocess.metrics_csv
 		Array[Array[File]] cellbender_posterior_probability = preprocess.posterior_probability
-		Array[Array[File]] rna_initial_adata_object = preprocess.rna_initial_adata_object
-		Array[Array[File]] atac_initial_adata_object = preprocess.atac_initial_adata_object
+		Array[Array[File?]] rna_initial_adata_object = preprocess.rna_initial_adata_object
+		Array[Array[File?]] atac_initial_adata_object = preprocess.atac_initial_adata_object
 
 		#######################################
 		################# RNA #################
