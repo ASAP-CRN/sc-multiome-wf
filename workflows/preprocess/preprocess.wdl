@@ -270,12 +270,12 @@ workflow preprocess {
 						input:
 							team_id = team_id,
 							dataset_id = dataset_id,
-							pool_id = sample.sample_id,
-							source_subject_id = source_subject_id[index][mux_sample_index],
-							subject_id = asap_subject_id[index][mux_sample_index],
 							sample_id = mux_sample_id[index][mux_sample_index],
 							batch = mux_batch[index][mux_sample_index],
 							sex = mux_sex[index][mux_sample_index],
+							pool_id = sample.sample_id,
+							source_subject_id = source_subject_id[index][mux_sample_index],
+							subject_id = asap_subject_id[index][mux_sample_index],
 							cellbender_counts = sample_demux_cellbender_counts_output[mux_sample_index],
 							raw_data_path = rna_demux_adata_raw_data_path,
 							workflow_info = workflow_info,
@@ -292,12 +292,12 @@ workflow preprocess {
 						input:
 							team_id = team_id,
 							dataset_id = dataset_id,
-							pool_id = sample.sample_id,
-							source_subject_id = source_subject_id[index][mux_sample_index],
-							subject_id = asap_subject_id[index][mux_sample_index],
 							sample_id = mux_sample_id[index][mux_sample_index],
 							batch = mux_batch[index][mux_sample_index],
 							sex = mux_sex[index][mux_sample_index],
+							pool_id = sample.sample_id,
+							source_subject_id = source_subject_id[index][mux_sample_index],
+							subject_id = asap_subject_id[index][mux_sample_index],
 							fragments_tsv_gz = sample_demux_fragments_tsv_gz_output[mux_sample_index],
 							raw_data_path = atac_demux_adata_raw_data_path,
 							workflow_info = workflow_info,
@@ -431,6 +431,7 @@ workflow preprocess {
 		dataset_doi_url: {help: "Generated Zenodo DOI URL referencing the dataset."}
 		samples: {help: "An array of Sample struct, set of samples and their associated reads and metadata information."}
 		cellranger_arc_reference_data: {help: "CellRanger ARC reference data; see https://www.10xgenomics.com/support/software/cell-ranger-arc/downloads."}
+		cellranger_arc_reference_chrom_sizes: {help: "Chromosome sizes file (.chrom.sizes or .fa.fai) from the Cell Ranger ARC reference, used to validate fragment coordinates during splitting."}
 		cellbender_fpr: {help: "Cellbender false positive rate. [0.0]"}
 		vireo_assignment_files: {help: "Vireo donor assignment CSV with columns: donor_id, sample, raw_bc. Covers all donors in the pool."}
 		workflow_name: {help: "Workflow name; stored in the file-level manifest and final manifest with all saved files."}
@@ -755,12 +756,12 @@ task counts_to_adata {
 	input {
 		String team_id
 		String dataset_id
-		String? pool_id
-		String? source_subject_id
-		String? subject_id
 		String sample_id
 		String batch
 		String sex
+		String? pool_id
+		String? source_subject_id
+		String? subject_id
 
 		File cellbender_counts
 
@@ -771,6 +772,8 @@ task counts_to_adata {
 		String zones
 	}
 
+	String adata_output_filename = if defined(pool_id) then "~{dataset_id}.~{sample_id}.~{pool_id}.cleaned_unfiltered.h5ad" else "~{dataset_id}.~{sample_id}.cleaned_unfiltered.h5ad"
+
 	Int disk_size = ceil(size(cellbender_counts, "GB") * 2 + 20)
 
 	command <<<
@@ -778,23 +781,26 @@ task counts_to_adata {
 
 		/usr/bin/time -v \
 		counts_to_adata \
-			--cellranger-arc-fragments ~{cellbender_counts} \
+			--cellbender-counts ~{cellbender_counts} \
+			--team ~{team_id} \
+			--dataset ~{dataset_id} \
 			--sample-id ~{sample_id} \
 			--batch ~{batch} \
 			--sex ~{sex} \
-			--team ~{team_id} \
-			--dataset ~{dataset_id} \
-			--adata-output "~{dataset_id}.~{sample_id}.~{pool_id}.cleaned_unfiltered.h5ad"
+			~{"--pool-id " + pool_id} \
+			~{"--source-subject-id " + source_subject_id} \
+			~{"--subject-id " + subject_id} \
+			--adata-output ~{adata_output_filename}
 
 		upload_outputs \
 			-b ~{billing_project} \
 			-d ~{raw_data_path} \
 			-i ~{write_tsv(workflow_info)} \
-			-o "~{dataset_id}.~{sample_id}.~{pool_id}.cleaned_unfiltered.h5ad"
+			-o ~{adata_output_filename}
 	>>>
 
 	output {
-		String initial_adata_object = "~{raw_data_path}/~{dataset_id}.~{sample_id}.~{pool_id}.cleaned_unfiltered.h5ad"
+		String initial_adata_object = "~{raw_data_path}/~{adata_output_filename}"
 	}
 
 	runtime {
@@ -809,18 +815,20 @@ task counts_to_adata {
 	}
 
 	meta {
-		description: "Converts Cell Ranger ARC counts into AnnData objects using SnapATAC2."
+		description: "Converts Cell Ranger ARC counts into AnnData objects using scanpy for demultiplexed samples and one per sample otherwise."
 	}
 
 	parameter_meta {
-		dataset_sample_id: {help: "Generated ASAP dataset ID and sample ID; stored in the AnnData objects."}
+		team_id: {help: "Name of the CRN Team; stored in the AnnData objects."}
+		dataset_id: {help: "Generated ASAP dataset ID; stored in the AnnData objects."}
 		sample_id: {help: "Generated ASAP sample ID; stored in the AnnData objects and used to name output files."}
 		batch: {help: "The sample's batch; stored in the AnnData objects."}
 		sex: {help: "The sample's sex; stored in the AnnData objects."}
-		team_id: {help: "Name of the CRN Team; stored in the AnnData objects."}
-		dataset_id: {help: "Generated ASAP dataset ID; stored in the AnnData objects."}
-		sample_demux_cellbender_counts: {help: "."}
-		raw_data_path: {help: "Raw data bucket path for counts to adata outputs; location of raw bucket to upload task outputs to (`<raw_data_bucket>/workflow_execution/preprocess/atac/counts_to_adata/<atac_adata_task_version>`)."}
+		pool_id: {help: "Generated ASAP pool ID; stored in the AnnData objects."}
+		source_subject_id: {help: "Source subject ID; stored in the AnnData objects."}
+		subject_id: {help: "Generated ASAP subject ID; stored in the AnnData objects."}
+		cellbender_counts: {help: "CellBender-cleaned count matrix (H5 format)."}
+		raw_data_path: {help: "Raw data bucket path for counts to adata outputs; location of raw bucket to upload task outputs to (`<raw_data_bucket>/workflow_execution/preprocess/rna/counts_to_adata/<rna_adata_task_version>`)."}
 		workflow_info: {help: "UTC timestamp, workflow name, workflow version, and GitHub release; stored in the file-level manifest and final manifest with all saved files."}
 		billing_project: {help: "Billing project to charge GCP costs."}
 		container_registry: {help: "Container registry where workflow Docker images are hosted."}
@@ -832,12 +840,12 @@ task fragments_to_adata {
 	input {
 		String team_id
 		String dataset_id
-		String? pool_id
-		String? source_subject_id
-		String? subject_id
 		String sample_id
 		String batch
 		String sex
+		String? pool_id
+		String? source_subject_id
+		String? subject_id
 
 		File fragments_tsv_gz
 
@@ -848,6 +856,8 @@ task fragments_to_adata {
 		String zones
 	}
 
+	String adata_output_filename = if defined(pool_id) then "~{dataset_id}.~{sample_id}.~{pool_id}.cleaned_unfiltered.h5ad" else "~{dataset_id}.~{sample_id}.cleaned_unfiltered.h5ad"
+
 	Int disk_size = ceil(size(fragments_tsv_gz, "GB") * 2 + 20)
 
 	command <<<
@@ -856,22 +866,25 @@ task fragments_to_adata {
 		/usr/bin/time -v \
 		fragments_to_adata \
 			--cellranger-arc-fragments ~{fragments_tsv_gz} \
+			--team ~{team_id} \
+			--dataset ~{dataset_id} \
 			--sample-id ~{sample_id} \
 			--batch ~{batch} \
 			--sex ~{sex} \
-			--team ~{team_id} \
-			--dataset ~{dataset_id} \
-			--adata-output "~{dataset_id}.~{sample_id}.~{pool_id}..cleaned_unfiltered.h5ad"
+			~{"--pool-id " + pool_id} \
+			~{"--source-subject-id " + source_subject_id} \
+			~{"--subject-id " + subject_id} \
+			--adata-output ~{adata_output_filename}
 
 		upload_outputs \
 			-b ~{billing_project} \
 			-d ~{raw_data_path} \
 			-i ~{write_tsv(workflow_info)} \
-			-o "~{dataset_id}.~{sample_id}.~{pool_id}..cleaned_unfiltered.h5ad"
+			-o ~{adata_output_filename}
 	>>>
 
 	output {
-		String initial_adata_object = "~{raw_data_path}/~{dataset_id}.~{sample_id}.~{pool_id}..cleaned_unfiltered.h5ad"
+		String initial_adata_object = "~{raw_data_path}/~{adata_output_filename}"
 	}
 
 	runtime {
@@ -886,18 +899,20 @@ task fragments_to_adata {
 	}
 
 	meta {
-		description: "Converts Cell Ranger ARC counts into AnnData objects using SnapATAC2."
+		description: "Converts Cell Ranger ARC fragments into AnnData objects using SnapATAC2 for demultiplexed samples and one per sample otherwise."
 	}
 
 	parameter_meta {
-		dataset_sample_id: {help: "Generated ASAP dataset ID and sample ID; stored in the AnnData objects."}
+		team_id: {help: "Name of the CRN Team; stored in the AnnData objects."}
+		dataset_id: {help: "Generated ASAP dataset ID; stored in the AnnData objects."}
 		sample_id: {help: "Generated ASAP sample ID; stored in the AnnData objects and used to name output files."}
 		batch: {help: "The sample's batch; stored in the AnnData objects."}
 		sex: {help: "The sample's sex; stored in the AnnData objects."}
-		team_id: {help: "Name of the CRN Team; stored in the AnnData objects."}
-		dataset_id: {help: "Generated ASAP dataset ID; stored in the AnnData objects."}
+		pool_id: {help: "Generated ASAP pool ID; stored in the AnnData objects."}
+		source_subject_id: {help: "Source subject ID; stored in the AnnData objects."}
+		subject_id: {help: "Generated ASAP subject ID; stored in the AnnData objects."}
 		fragments_tsv_gz: {help: "Count and barcode information for every ATAC fragment observed in the experiment in TSV format output by Cell Ranger ARC."}
-		raw_data_path: {help: "Raw data bucket path for counts to adata outputs; location of raw bucket to upload task outputs to (`<raw_data_bucket>/workflow_execution/preprocess/atac/counts_to_adata/<atac_adata_task_version>`)."}
+		raw_data_path: {help: "Raw data bucket path for counts to adata outputs; location of raw bucket to upload task outputs to (`<raw_data_bucket>/workflow_execution/preprocess/atac/fragments_to_adata/<atac_adata_task_version>`)."}
 		workflow_info: {help: "UTC timestamp, workflow name, workflow version, and GitHub release; stored in the file-level manifest and final manifest with all saved files."}
 		billing_project: {help: "Billing project to charge GCP costs."}
 		container_registry: {help: "Container registry where workflow Docker images are hosted."}

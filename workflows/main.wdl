@@ -400,8 +400,14 @@ workflow sc_multiome_analysis {
 		Array[Array[File]] cellbender_log = preprocess.log
 		Array[Array[File]] cellbender_metrics_csv = preprocess.metrics_csv
 		Array[Array[File]] cellbender_posterior_probability = preprocess.posterior_probability
-		Array[Array[File?]] rna_initial_adata_object = preprocess.rna_initial_adata_object
-		Array[Array[File?]] atac_initial_adata_object = preprocess.atac_initial_adata_object
+		Array[Array[File]] rna_subject_demux_cellbender_counts = preprocess.rna_subject_demux_cellbender_counts
+		Array[Array[File]] rna_sample_demux_cellbender_counts = preprocess.rna_sample_demux_cellbender_counts
+		Array[Array[File]] rna_initial_demux_adata_object = preprocess.rna_initial_demux_adata_object
+		Array[Array[File]] atac_subject_split_fragments_tsv_gz = preprocess.atac_subject_split_fragments_tsv_gz
+		Array[Array[File]] atac_sample_split_fragments_tsv_gz = preprocess.atac_sample_split_fragments_tsv_gz
+		Array[Array[File]] atac_initial_demux_adata_object = preprocess.atac_initial_demux_adata_object
+		Array[Array[File]] rna_initial_adata_object = preprocess.rna_initial_adata_object
+		Array[Array[File]] atac_initial_adata_object = preprocess.atac_initial_adata_object
 
 		#######################################
 		################# RNA #################
@@ -656,6 +662,7 @@ workflow sc_multiome_analysis {
 		cohort_id: {help: "Name of the cohort; used to name output files during cross-team cohort analysis."}
 		projects: {help: "The project ID, set of samples and their associated reads and metadata, output bucket locations, sc data type, and whether or not to run project-level cohort analysis."}
 		cellranger_arc_reference_data: {help: "CellRanger ARC reference data; see https://www.10xgenomics.com/support/software/cell-ranger-arc/downloads."}
+		cellranger_arc_reference_chrom_sizes: {help: "Chromosome sizes file (.chrom.sizes or .fa.fai) from the Cell Ranger ARC reference, used to validate fragment coordinates during splitting."}
 		cellbender_fpr: {help: "Cellbender false positive rate. [0.0]"}
 		vireo_assignment_files: {help: "Vireo donor assignment CSV with columns: donor_id, sample, raw_bc. Covers all donors in the pool."}
 		pct_counts_mt_max: {help: "Maximum percentage of mitochondrial gene counts allowed per cell. [10]"}
