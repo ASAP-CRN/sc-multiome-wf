@@ -6,13 +6,28 @@ from os import listdir
 from os.path import isfile, join
 
 
+def library_type(filename):
+    name = filename.lower()
+    if "atac" in name:
+        return "Chromatin Accessibility"
+    if "rna" in name:
+        return "Gene Expression"
+    return None
+
+
 def main(args):
     fastqs_dir_path = os.path.join(os.getcwd(), "fastqs")
-    csv_lines = ["fastqs,sample,library_type"]
-    csv_lines.append(f"{fastqs_dir_path},{args.sample_id},Gene Expression")
 
-    csv_content = "\n".join(csv_lines)
+    rows = []
+    for entry in sorted(os.listdir(fastqs_dir_path)):
+        lib = library_type(entry)
+        if lib is None:
+            raise ValueError(f"Could not determine library type for {entry}")
+        row = f"{fastqs_dir_path},{args.sample_id},{lib}"
+        if row not in rows:
+            rows.append(row)
 
+    csv_content = "\n".join(["fastqs,sample,library_type"] + rows)
     with open(args.output, "w") as file:
         file.write(csv_content)
 

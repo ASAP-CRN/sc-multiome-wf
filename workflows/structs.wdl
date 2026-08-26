@@ -15,7 +15,6 @@ struct Sample {
 
 	Array[File]+ fastq_R1s
 	Array[File]+ fastq_R2s
-	Array[File]+ fastq_R3s
 	Array[File] fastq_I1s
 	Array[File] fastq_I2s
 

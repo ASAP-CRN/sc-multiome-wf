@@ -1,8 +1,10 @@
 {
   "sc_multiome_analysis.cohort_id": "String",
-  "sc_multiome_analysis.projects": "Array[WomCompositeType {\n samples -> Array[WomCompositeType {\n fastq_I1s -> Array[File]\nsample_id -> String\nfastq_R1s -> Array[File]+\nsex -> String?\nbatch -> String?\nfastq_I2s -> Array[File]\nfastq_R2s -> Array[File]+ \n}]\nasap_dataset_id -> String\nrun_project_cohort_analysis -> Boolean\nraw_data_bucket -> String\nasap_team_id -> String\nstaging_data_buckets -> Array[String]\nasap_dataset_doi_url -> String \n}]",
+  "sc_multiome_analysis.projects": "Array[WomCompositeType {\n samples -> Array[WomCompositeType {\n fastq_I1s -> Array[File]\nsample_id -> String\nfastq_R1s -> Array[File]+\nmultiplexed_samples -> Array[WomCompositeType {\n asap_subject_id -> String\nsample_id -> String\nsource_subject_id -> String\nsex -> String?\nbatch -> String? \n}]\nsex -> String?\nbatch -> String?\nfastq_I2s -> Array[File]\nfastq_R2s -> Array[File]+ \n}]\nasap_dataset_id -> String\nrun_project_cohort_analysis -> Boolean\nraw_data_bucket -> String\nasap_team_id -> String\nstaging_data_buckets -> Array[String]\nasap_dataset_doi_url -> String \n}]",
   "sc_multiome_analysis.cellranger_arc_reference_data": "File",
+  "sc_multiome_analysis.cellranger_atac_reference_chrom_sizes": "File",
   "sc_multiome_analysis.cellbender_fpr": "Float (optional, default = 0.0)",
+  "sc_multiome_analysis.vireo_assignment_files": "Array[File]? (optional)",
   "sc_multiome_analysis.pct_counts_mt_max": "Int (optional, default = 10)",
   "sc_multiome_analysis.doublet_score_max": "Float (optional, default = 0.2)",
   "sc_multiome_analysis.total_counts_limits": "Array[Int] (optional, default = [100, 100000])",
@@ -48,4 +50,3 @@
   "sc_multiome_analysis.container_registry": "String",
   "sc_multiome_analysis.zones": "String (optional, default = \"us-central1-c us-central1-f\")"
 }
-
