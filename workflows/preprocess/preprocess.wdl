@@ -18,7 +18,7 @@ workflow preprocess {
 		Array[Sample] samples
 
 		File cellranger_arc_reference_data
-		File cellranger_arc_reference_chrom_sizes
+		File cellranger_atac_reference_chrom_sizes
 		Float cellbender_fpr
 		Array[File]? vireo_assignment_files
 
@@ -232,7 +232,7 @@ workflow preprocess {
 						source_subject_ids = source_subject_id[index],
 						sample_ids = mux_sample_id[index],
 						cellranger_atac_fragments = cellranger_arc_atac_fragments_tsv_gz, #!FileCoercion
-						cellranger_atac_reference_chrom_sizes = cellranger_arc_reference_chrom_sizes,
+						cellranger_atac_reference_chrom_sizes = cellranger_atac_reference_chrom_sizes,
 						vireo_assignment_files = select_first([vireo_assignment_files]),
 						raw_data_path = atac_demux_fragments_raw_data_path,
 						workflow_info = workflow_info,
@@ -431,7 +431,7 @@ workflow preprocess {
 		dataset_doi_url: {help: "Generated Zenodo DOI URL referencing the dataset."}
 		samples: {help: "An array of Sample struct, set of samples and their associated reads and metadata information."}
 		cellranger_arc_reference_data: {help: "CellRanger ARC reference data; see https://www.10xgenomics.com/support/software/cell-ranger-arc/downloads."}
-		cellranger_arc_reference_chrom_sizes: {help: "Chromosome sizes file (.chrom.sizes or .fa.fai) from the Cell Ranger ARC reference, used to validate fragment coordinates during splitting."}
+		cellranger_atac_reference_chrom_sizes: {help: "Chromosome sizes file (.chrom.sizes or .fa.fai) from the Cell Ranger ATAC reference (same as ARC), used to validate fragment coordinates during splitting."}
 		cellbender_fpr: {help: "Cellbender false positive rate. [0.0]"}
 		vireo_assignment_files: {help: "Vireo donor assignment CSV with columns: donor_id, sample, raw_bc. Covers all donors in the pool."}
 		workflow_name: {help: "Workflow name; stored in the file-level manifest and final manifest with all saved files."}
