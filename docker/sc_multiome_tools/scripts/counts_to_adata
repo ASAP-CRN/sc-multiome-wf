@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 
 import argparse
+from typing import Optional
 import scanpy as sc
+from cellbender.remove_background.downstream import anndata_from_h5
 
 
 def prep_metadata(
@@ -50,9 +52,15 @@ def prep_metadata(
 
 
 def main(args):
-    adata = sc.read_h5ad(
-        filename=args.cellbender_counts_adata
-    )
+    if args.cellbender_counts.endswith(".h5ad"):
+        adata = sc.read_h5ad(
+            filename=args.cellbender_counts
+        )
+    else:
+         adata = anndata_from_h5(
+            filename=args.cellbender_counts
+        )
+    adata.var_names_make_unique()
     adata = prep_metadata(
         adata,
         team_id=args.team_id,
@@ -73,14 +81,14 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Convert Cell Ranger ARC RNA counts to AnnData objects"
+        description="Convert Cell Ranger ARC RNA counts to sample-level AnnData objects"
     )
     parser.add_argument(
         "-c",
-        "--cellbender-counts-adata",
+        "--cellbender-counts",
         type=str,
         required=True,
-        help="The demultiplexed Cellbender counts (.h5ad)"
+        help="The Cellbender counts (.h5) or demultiplexed Cellbender counts (.h5ad)"
     )
     parser.add_argument(
         "-t",

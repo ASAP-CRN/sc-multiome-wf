@@ -111,7 +111,7 @@ workflow sc_multiome_analysis {
 				cellranger_arc_reference_data = cellranger_arc_reference_data,
 				cellranger_atac_reference_chrom_sizes = cellranger_atac_reference_chrom_sizes,
 				cellbender_fpr = cellbender_fpr,
-				vireo_assignment_files = vireo_assignment_files,
+				vireo_assignment_files = flatten(select_all([vireo_assignment_files])),
 				workflow_name = workflow_name,
 				workflow_version = workflow_version,
 				workflow_release = workflow_release,

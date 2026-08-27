@@ -194,8 +194,7 @@ workflow preprocess {
 					zones = zones
 			}
 
-			String rna_demux_counts_complete = check_rna_demux_counts_output_files_exist.sample_preprocessing_complete[index][0]
-			Boolean run_rna_demux_counts = if run_rna_cellbender then true else (rna_demux_counts_complete == "false")
+			Boolean run_rna_demux_counts = if run_rna_cellbender then true else !check_rna_demux_counts_output_files_exist.all_exist
 
 			call check_output_files_exist as check_atac_split_demux_fragments_output_files_exist {
 				input:
@@ -214,7 +213,7 @@ workflow preprocess {
 						source_subject_ids = source_subject_id[index],
 						sample_ids = mux_sample_id[index],
 						cellbender_counts = removed_background_counts_output,
-						vireo_assignment_files = select_first([vireo_assignment_files]),
+						vireo_assignment_files = flatten(select_all([vireo_assignment_files])),
 						raw_data_path = rna_demux_counts_raw_data_path,
 						workflow_info = workflow_info,
 						billing_project = billing_project,
@@ -233,7 +232,7 @@ workflow preprocess {
 						sample_ids = mux_sample_id[index],
 						cellranger_atac_fragments = cellranger_arc_atac_fragments_tsv_gz, #!FileCoercion
 						cellranger_atac_reference_chrom_sizes = cellranger_atac_reference_chrom_sizes,
-						vireo_assignment_files = select_first([vireo_assignment_files]),
+						vireo_assignment_files = flatten(select_all([vireo_assignment_files])),
 						raw_data_path = atac_demux_fragments_raw_data_path,
 						workflow_info = workflow_info,
 						billing_project = billing_project,
@@ -251,8 +250,7 @@ workflow preprocess {
 					zones = zones
 			}
 
-			String rna_demux_initial_adata_object_complete = check_rna_demux_adata_output_files_exist.sample_preprocessing_complete[index][0]
-			Boolean run_rna_demux_adata = if run_rna_demux_counts then true else (rna_demux_initial_adata_object_complete == "false")
+			Boolean run_rna_demux_adata = if run_rna_demux_counts then true else !check_rna_demux_adata_output_files_exist.all_exist
 
 			call check_output_files_exist as check_atac_demux_adata_output_files_exist {
 				input:
@@ -261,8 +259,7 @@ workflow preprocess {
 					zones = zones
 			}
 
-			String atac_demux_initial_adata_object_complete = check_atac_demux_adata_output_files_exist.sample_preprocessing_complete[index][0]
-			Boolean run_atac_demux_adata = if run_atac_split_demux_fragments then true else (atac_demux_initial_adata_object_complete == "false")
+			Boolean run_atac_demux_adata = if run_atac_split_demux_fragments then true else !check_atac_demux_adata_output_files_exist.all_exist
 
 			scatter (mux_sample_index in range(length(sample.multiplexed_samples))) {
 				if (run_rna_demux_adata) {
@@ -276,7 +273,7 @@ workflow preprocess {
 							pool_id = sample.sample_id,
 							source_subject_id = source_subject_id[index][mux_sample_index],
 							subject_id = asap_subject_id[index][mux_sample_index],
-							sample_demux_cellbender_counts = sample_demux_cellbender_counts_output[mux_sample_index],
+							cellbender_counts = sample_demux_cellbender_counts_output[mux_sample_index],
 							raw_data_path = rna_demux_adata_raw_data_path,
 							workflow_info = workflow_info,
 							billing_project = billing_project,
@@ -339,7 +336,7 @@ workflow preprocess {
 						sample_id = sample.sample_id,
 						batch = select_first([sample.batch]),
 						sex = select_first([sample.sex]),
-						sample_demux_cellbender_counts = removed_background_counts_output,
+						cellbender_counts = removed_background_counts_output,
 						raw_data_path = rna_adata_raw_data_path,
 						workflow_info = workflow_info,
 						billing_project = billing_project,
@@ -365,10 +362,10 @@ workflow preprocess {
 						container_registry = container_registry,
 						zones = zones
 				}
+			}
 
 			File preprocessed_atac_adata_object_output = select_first([atac_fragments_to_adata.initial_adata_object, atac_initial_adata_object_output[index]]) #!FileCoercion
 			
-			}
 		}
 	}
 
@@ -768,7 +765,7 @@ task counts_to_adata {
 		String? source_subject_id
 		String? subject_id
 
-		File sample_demux_cellbender_counts
+		File cellbender_counts
 
 		String raw_data_path
 		Array[Array[String]] workflow_info
@@ -779,14 +776,14 @@ task counts_to_adata {
 
 	String adata_output_filename = if defined(pool_id) then "~{dataset_id}.~{sample_id}.~{pool_id}.cleaned_unfiltered.h5ad" else "~{dataset_id}.~{sample_id}.cleaned_unfiltered.h5ad"
 
-	Int disk_size = ceil(size(sample_demux_cellbender_counts, "GB") * 2 + 20)
+	Int disk_size = ceil(size(cellbender_counts, "GB") * 2 + 20)
 
 	command <<<
 		set -euo pipefail
 
 		/usr/bin/time -v \
 		counts_to_adata \
-			--cellbender-counts-adata ~{sample_demux_cellbender_counts} \
+			--cellbender-counts ~{cellbender_counts} \
 			--team ~{team_id} \
 			--dataset ~{dataset_id} \
 			--sample-id ~{sample_id} \
@@ -832,7 +829,7 @@ task counts_to_adata {
 		pool_id: {help: "Generated ASAP pool ID; stored in the AnnData objects."}
 		source_subject_id: {help: "Source subject ID; stored in the AnnData objects."}
 		subject_id: {help: "Generated ASAP subject ID; stored in the AnnData objects."}
-		sample_demux_cellbender_counts: {help: "Demultiplexed Cellbender counts AnnData object."}
+		cellbender_counts: {help: "Cellbender counts (.h5) or demultiplexed Cellbender counts (.h5ad)."}
 		raw_data_path: {help: "Raw data bucket path for counts to adata outputs; location of raw bucket to upload task outputs to (`<raw_data_bucket>/workflow_execution/preprocess/rna/counts_to_adata/<rna_adata_task_version>`)."}
 		workflow_info: {help: "UTC timestamp, workflow name, workflow version, and GitHub release; stored in the file-level manifest and final manifest with all saved files."}
 		billing_project: {help: "Billing project to charge GCP costs."}

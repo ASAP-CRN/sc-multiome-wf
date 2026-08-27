@@ -61,7 +61,7 @@ workflow multivi_integration {
 	}
 
 	meta {
-		description: "Integrates samples by training a PeakVI variational autoencoder for batch correction and clusters cells using Leiden community detection, producing an integrated MuData object, PeakVI model, and UMAP plot."
+		description: "Integrates samples by training a MultiVI variational autoencoder for batch correction and clusters cells using Leiden community detection, producing an integrated MuData object, MultiVI model, and UMAP plot."
 	}
 
 	parameter_meta {

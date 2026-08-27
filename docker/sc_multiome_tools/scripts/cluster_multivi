@@ -30,7 +30,6 @@ def cluster(
 
     sc.pl.umap(
         mdata,
-        color="leiden",
         save=".png"
     )
     print(f"Wrote umap.png; will rename")

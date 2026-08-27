@@ -21,7 +21,7 @@ def harvest_labels(labeled_rna: sc.AnnData, label_key: str):
     return labels
 
 
-def transfer_labels(mdata: md.MuData, labels, label_key: str):
+def transfer_labels(mdata: md.MuData, labels):
     """
     Attach RNA-derived labels to the shared observation axis and the ATAC
     modality by barcode. Paired cells missing a label in the RNA object (rare;
@@ -48,11 +48,11 @@ def transfer_labels(mdata: md.MuData, labels, label_key: str):
 
     joint = joint.astype("category")
 
-    mdata.obs[label_key] = joint.values
-    atac.obs[label_key] = joint.reindex(atac.obs_names).values
-    rna.obs[label_key] = joint.reindex(rna.obs_names).values
+    mdata.obs["cell_type"] = joint.values
+    atac.obs["cell_type"] = joint.reindex(atac.obs_names).values
+    rna.obs["cell_type"] = joint.reindex(rna.obs_names).values
 
-    print(mdata.obs[label_key].value_counts().to_string())
+    print(mdata.obs["cell_type"].value_counts().to_string())
     return mdata
 
 
@@ -61,7 +61,7 @@ def main(args):
     labeled_rna = sc.read_h5ad(args.labeled_rna_input)
 
     labels = harvest_labels(labeled_rna, args.label_key)
-    mdata = transfer_labels(mdata, labels, args.label_key)
+    mdata = transfer_labels(mdata, labels)
 
     mdata.write(
         filename=args.mudata_output,
