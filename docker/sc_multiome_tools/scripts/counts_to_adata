@@ -50,13 +50,13 @@ def prep_metadata(
 
 
 def main(args):
-    adata = sc.read_10x_h5(
-        filename=args.cellbender_counts
+    adata = sc.read_h5ad(
+        filename=args.cellbender_counts_adata
     )
     adata = prep_metadata(
         adata,
-        team_id=args.team,
-        dataset_id=args.dataset,
+        team_id=args.team_id,
+        dataset_id=args.dataset_id,
         sample_id=args.sample_id,
         batch=args.batch,
         sex=args.sex,
@@ -77,10 +77,10 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "-c",
-        "--cellbender-counts",
+        "--cellbender-counts-adata",
         type=str,
         required=True,
-        help="The Cell Ranger ARC atac_fragments.tsv.gz output that is the barcoded and aligned fragment file"
+        help="The demultiplexed Cellbender counts (.h5ad)"
     )
     parser.add_argument(
         "-t",
@@ -134,7 +134,7 @@ if __name__ == "__main__":
         help="Source subject/donor ID; provided only for multiplexed samples"
     )
     parser.add_argument(
-        "-c",
+        "-j",
         "--subject-id",
         type=str,
         required=False,

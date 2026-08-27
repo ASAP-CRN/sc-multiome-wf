@@ -72,7 +72,7 @@ workflow preprocess {
 			String mux_batch = select_first([mux_sample_object.batch])
 			String mux_sex = select_first([mux_sample_object.sex])
 
-			String rna_demux_counts_output = if is_multiplexed then "~{rna_demux_counts_raw_data_path}/~{mux_dataset_sample_pool_id}.cellbender.h5" else "NA"
+			String rna_demux_counts_output = if is_multiplexed then "~{rna_demux_counts_raw_data_path}/~{mux_dataset_sample_pool_id}.demux_counts.h5ad" else "NA"
 			String rna_demux_initial_adata_object_output = if is_multiplexed then "~{rna_demux_adata_raw_data_path}/~{mux_dataset_sample_pool_id}.cleaned_unfiltered.h5ad" else "NA"
 			String atac_demux_fragments_output = if is_multiplexed then "~{atac_demux_fragments_raw_data_path}/~{mux_dataset_sample_pool_id}.fragments.tsv.gz" else "NA"
 			String atac_demux_initial_adata_object_output = if is_multiplexed then "~{atac_demux_adata_raw_data_path}/~{mux_dataset_sample_pool_id}.cleaned_unfiltered.h5ad" else "NA"
@@ -276,7 +276,7 @@ workflow preprocess {
 							pool_id = sample.sample_id,
 							source_subject_id = source_subject_id[index][mux_sample_index],
 							subject_id = asap_subject_id[index][mux_sample_index],
-							cellbender_counts = sample_demux_cellbender_counts_output[mux_sample_index],
+							sample_demux_cellbender_counts = sample_demux_cellbender_counts_output[mux_sample_index],
 							raw_data_path = rna_demux_adata_raw_data_path,
 							workflow_info = workflow_info,
 							billing_project = billing_project,
@@ -339,7 +339,7 @@ workflow preprocess {
 						sample_id = sample.sample_id,
 						batch = select_first([sample.batch]),
 						sex = select_first([sample.sex]),
-						cellbender_counts = removed_background_counts_output,
+						sample_demux_cellbender_counts = removed_background_counts_output,
 						raw_data_path = rna_adata_raw_data_path,
 						workflow_info = workflow_info,
 						billing_project = billing_project,
@@ -679,12 +679,12 @@ task rna_demux_counts {
 	command <<<
 		set -euo pipefail
 
-		mkdir cellbender_counts_output
-		mkdir renamed_cellbender_counts_output
-
-		# TODO
-		/usr/bin/time -v \
-		demux
+		# Generate mapping of samples (pool), cell types (subject), and cell barcodes TSV
+		## Filter out 'doublet' and 'unassigned' cell types (subject)
+		echo -e "sample\tcell_type\tcell_barcode" > cell_barcodes.tsv
+		for f in ~{sep=' ' vireo_assignment_files}; do
+			awk -F ',' -v pool="~{pool_id}" '$2 ~ /^ASA/ && $3 ~ pool { OFS="\t"; print $3, $2, $4 }' "${f}" >> cell_barcodes.tsv
+		done
 
 		paste \
 			~{write_lines(source_subject_ids)} \
@@ -697,13 +697,17 @@ task rna_demux_counts {
 			exit 1
 		fi
 
-		# Rename outputs with ASAP_dataset_id + ASAP_sample_id + pool_id
-		while IFS=$'\t' read -r source_subject_id sample_id; do
-			ln "cellbender_counts_output/${source_subject_id}.cellbender.h5" "renamed_cellbender_counts_output/~{dataset_id}.${sample_id}.~{pool_id}.cellbender.h5"
-		done < metadata.tsv
+		/usr/bin/time -v \
+		demux_cellbender_counts \
+			--cellbender-counts ~{cellbender_counts} \
+			--cell-barcodes cell_barcodes.tsv \
+			--metadata metadata.tsv \
+			--pool-id ~{pool_id} \
+			--dataset-id ~{dataset_id}
 
+		files_to_upload=(*~{pool_id}.demux_counts.h5ad)
 		upload_args=()
-		for f in cellbender_counts_output/*; do
+		for f in "${files_to_upload[@]}"; do
 			upload_args+=(-o "${f}")
 		done
 
@@ -713,12 +717,13 @@ task rna_demux_counts {
 			-i ~{write_tsv(workflow_info)} \
 			"${upload_args[@]}"
 
-		# shellcheck disable=SC2012
-		ls renamed_cellbender_counts_output | sed "s|^|~{raw_data_path}/|" | grep -v "meta.tsv$" > sample_cellbender_counts_filenames.txt
+		for f in "${files_to_upload[@]}"; do
+			echo "~{raw_data_path}/${f}"
+		done > sample_cellbender_counts_filenames.txt
 	>>>
 
 	output {
-		Array[File] subject_demux_cellbender_counts = glob("cellbender_counts_output/*.cellbender.h5")
+		Array[File] subject_demux_cellbender_counts = glob("*~{pool_id}.demux_counts.h5ad")
 		Array[String] sample_demux_cellbender_counts = read_lines("sample_cellbender_counts_filenames.txt")
 	}
 
@@ -734,7 +739,7 @@ task rna_demux_counts {
 	}
 
 	meta {
-		description: ""
+		description: "Demultiplex Cellbender counts and export as AnnData objects"
 	}
 
 	parameter_meta {
@@ -742,7 +747,7 @@ task rna_demux_counts {
 		pool_id: {help: "Generated ASAP pool ID; used to name output files."}
 		source_subject_ids: {help: "An array of provided source subject IDs; used for mapping."}
 		sample_ids: {help: "An array of generated ASAP sample ID; used for mapping."}
-		cellbender_counts: {help: ""}
+		cellbender_counts: {help: "CellBender-cleaned count matrix (H5 format)."}
 		vireo_assignment_files: {help: "Vireo donor assignment CSV with columns: donor_id, sample, raw_bc. Covers all donors in the pool."}
 		raw_data_path: {help: "Raw data bucket path for counts to adata outputs; location of raw bucket to upload task outputs to (`<raw_data_bucket>/workflow_execution/preprocess/rna/demux/<rna_demux_task_version>`)."}
 		workflow_info: {help: "UTC timestamp, workflow name, workflow version, and GitHub release; stored in the file-level manifest and final manifest with all saved files."}
@@ -763,7 +768,7 @@ task counts_to_adata {
 		String? source_subject_id
 		String? subject_id
 
-		File cellbender_counts
+		File sample_demux_cellbender_counts
 
 		String raw_data_path
 		Array[Array[String]] workflow_info
@@ -774,14 +779,14 @@ task counts_to_adata {
 
 	String adata_output_filename = if defined(pool_id) then "~{dataset_id}.~{sample_id}.~{pool_id}.cleaned_unfiltered.h5ad" else "~{dataset_id}.~{sample_id}.cleaned_unfiltered.h5ad"
 
-	Int disk_size = ceil(size(cellbender_counts, "GB") * 2 + 20)
+	Int disk_size = ceil(size(sample_demux_cellbender_counts, "GB") * 2 + 20)
 
 	command <<<
 		set -euo pipefail
 
 		/usr/bin/time -v \
 		counts_to_adata \
-			--cellbender-counts ~{cellbender_counts} \
+			--cellbender-counts-adata ~{sample_demux_cellbender_counts} \
 			--team ~{team_id} \
 			--dataset ~{dataset_id} \
 			--sample-id ~{sample_id} \
@@ -827,7 +832,7 @@ task counts_to_adata {
 		pool_id: {help: "Generated ASAP pool ID; stored in the AnnData objects."}
 		source_subject_id: {help: "Source subject ID; stored in the AnnData objects."}
 		subject_id: {help: "Generated ASAP subject ID; stored in the AnnData objects."}
-		cellbender_counts: {help: "CellBender-cleaned count matrix (H5 format)."}
+		sample_demux_cellbender_counts: {help: "Demultiplexed Cellbender counts AnnData object."}
 		raw_data_path: {help: "Raw data bucket path for counts to adata outputs; location of raw bucket to upload task outputs to (`<raw_data_bucket>/workflow_execution/preprocess/rna/counts_to_adata/<rna_adata_task_version>`)."}
 		workflow_info: {help: "UTC timestamp, workflow name, workflow version, and GitHub release; stored in the file-level manifest and final manifest with all saved files."}
 		billing_project: {help: "Billing project to charge GCP costs."}

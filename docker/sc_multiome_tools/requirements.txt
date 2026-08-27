@@ -1,4 +1,5 @@
 argparse==1.4.0
+cellbender==0.4.0
 snapatac2==2.9.0
 scanpy==1.12.2
 hdf5plugin==6.0.0
