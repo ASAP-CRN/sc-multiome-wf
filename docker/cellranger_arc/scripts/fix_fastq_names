@@ -5,16 +5,27 @@ import re
 from os.path import basename
 
 
+def modality(fastq_basename):
+    if re.search(r"atac", fastq_basename, re.IGNORECASE):
+        return "ATAC"
+    if re.search(r"rna", fastq_basename, re.IGNORECASE):
+        return "RNA"
+    return None
+
+
 def main(args):
     fastq_basename = basename(args.fastq)
     sample_id = args.sample_id
+
+    library = modality(fastq_basename)
+    prefix = f"{sample_id}_{library}" if library else sample_id
 
     valid_fastq_name = re.compile(
         r".*(S[0-9]+_L[0-9]{3}_[IR][1-2]_[0-9]{3}\.(fastq|fq)(\.gz|))$"
     )
 
     if re.search(valid_fastq_name, fastq_basename):
-        print(re.sub(valid_fastq_name, rf"{sample_id}_\1", fastq_basename))
+        print(re.sub(valid_fastq_name, rf"{prefix}_\1", fastq_basename))
     else:
         # Extract what we can from the fastq name
         sample = re.search(r"[_.](S[0-9]+)[_.]", fastq_basename)
@@ -37,12 +48,12 @@ def main(args):
         else:
             extension = extension.group(1)
 
-        print(f"{sample_id}_{sample}_{lane}_{read}_001{extension}")
+        print(f"{prefix}_{sample}_{lane}_{read}_001{extension}")
 
 
 if __name__ == "__main__":
     parser = ArgumentParser(
-        "Convert a FASTQ basename to the format required by cellranger (<sample>_S[0-9]+_L[0-9][0-9][0-9]_[IR][12]_[0-9][0-9][0-9])"
+        "Convert a 10x Multiome FASTQ basename to the format required by cellranger (<sample>_<modality>_S[0-9]+_L[0-9][0-9][0-9]_[IR][12]_[0-9][0-9][0-9])"
     )
 
     parser.add_argument("-f", "--fastq", type=str, required=True, help="Path to fastq")
