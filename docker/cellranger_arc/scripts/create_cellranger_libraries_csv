@@ -6,13 +6,20 @@ from os import listdir
 from os.path import isfile, join
 
 
-def library_type(filename):
-    name = filename.lower()
+def modality(filename, sample_id):
+    # FASTQs have already been renamed to {sample_id}_{modality}_S[0-9]+_...
+    name = filename.removeprefix(sample_id).lower()
     if "atac" in name:
-        return "Chromatin Accessibility"
+        return "ATAC"
     if "rna" in name:
-        return "Gene Expression"
+        return "RNA"
     return None
+
+
+LIBRARY_TYPES = {
+    "ATAC": "Chromatin Accessibility",
+    "RNA": "Gene Expression",
+}
 
 
 def main(args):
@@ -20,10 +27,11 @@ def main(args):
 
     rows = []
     for entry in sorted(os.listdir(fastqs_dir_path)):
-        lib = library_type(entry)
-        if lib is None:
+        library = modality(entry, args.sample_id)
+        if library is None:
             raise ValueError(f"Could not determine library type for {entry}")
-        row = f"{fastqs_dir_path},{args.sample_id},{lib}"
+        # The sample column must match the FASTQ name prefix preceding _S[0-9]+
+        row = f"{fastqs_dir_path},{args.sample_id}_{library},{LIBRARY_TYPES[library]}"
         if row not in rows:
             rows.append(row)
 
