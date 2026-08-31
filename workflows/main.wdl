@@ -126,7 +126,7 @@ workflow sc_multiome_analysis {
 			preprocess.multiome_outputs_tar_gz,
 			preprocess.raw_counts,
 			preprocess.filtered_counts,
-			preprocess.molecule_info,
+			preprocess.gex_molecule_info,
 			preprocess.metrics_summary_csv,
 			preprocess.per_barcode_metrics_summary_csv,
 			preprocess.gex_possorted_bam,
@@ -377,7 +377,7 @@ workflow sc_multiome_analysis {
 		Array[Array[File]] cellranger_arc_multiome_outputs_tar_gz = preprocess.multiome_outputs_tar_gz
 		Array[Array[File]] cellranger_arc_raw_counts = preprocess.raw_counts
 		Array[Array[File]] cellranger_arc_filtered_counts = preprocess.filtered_counts
-		Array[Array[File]] cellranger_arc_molecule_info = preprocess.molecule_info
+		Array[Array[File]] cellranger_arc_gex_molecule_info = preprocess.gex_molecule_info
 		Array[Array[File]] cellranger_arc_metrics_summary_csv = preprocess.metrics_summary_csv
 		Array[Array[File]] cellranger_arc_per_barcode_metrics_summary_csv = preprocess.per_barcode_metrics_summary_csv
 		Array[Array[File]] cellranger_arc_gex_possorted_bam = preprocess.gex_possorted_bam

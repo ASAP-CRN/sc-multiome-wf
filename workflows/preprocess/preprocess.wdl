@@ -105,7 +105,7 @@ workflow preprocess {
 		String cellranger_arc_multiome_outputs_tar_gz = "~{cellranger_arc_raw_data_path}/~{dataset_sample_id}.cellranger_arc_multiome_outputs.tar.gz"
 		String cellranger_arc_raw_counts = "~{cellranger_arc_raw_data_path}/~{dataset_sample_id}.raw_feature_bc_matrix.h5"
 		String cellranger_arc_filtered_counts = "~{cellranger_arc_raw_data_path}/~{dataset_sample_id}.filtered_feature_bc_matrix.h5"
-		String cellranger_arc_molecule_info = "~{cellranger_arc_raw_data_path}/~{dataset_sample_id}.molecule_info.h5"
+		String cellranger_arc_gex_molecule_info = "~{cellranger_arc_raw_data_path}/~{dataset_sample_id}.gex_molecule_info.h5"
 		String cellranger_arc_metrics_summary_csv = "~{cellranger_arc_raw_data_path}/~{dataset_sample_id}.metrics_summary.csv"
 		String cellranger_arc_per_barcode_metrics_summary_csv = "~{cellranger_arc_raw_data_path}/~{dataset_sample_id}.per_barcode_metrics.csv"
 		String cellranger_arc_gex_possorted_bam = "~{cellranger_arc_raw_data_path}/~{dataset_sample_id}.gex_possorted_bam.bam"
@@ -140,7 +140,7 @@ workflow preprocess {
 		File multiome_outputs_tar_gz_output = select_first([cellranger_arc_count.multiome_outputs_tar_gz, cellranger_arc_multiome_outputs_tar_gz]) #!FileCoercion
 		File raw_counts_output = select_first([cellranger_arc_count.raw_counts, cellranger_arc_raw_counts]) #!FileCoercion
 		File filtered_counts_output = select_first([cellranger_arc_count.filtered_counts, cellranger_arc_filtered_counts]) #!FileCoercion
-		File molecule_info_output = select_first([cellranger_arc_count.molecule_info, cellranger_arc_molecule_info]) #!FileCoercion
+		File gex_molecule_info_output = select_first([cellranger_arc_count.gex_molecule_info, cellranger_arc_gex_molecule_info]) #!FileCoercion
 		File metrics_summary_csv_output = select_first([cellranger_arc_count.metrics_summary_csv, cellranger_arc_metrics_summary_csv]) #!FileCoercion
 		File per_barcode_metrics_summary_csv_output = select_first([cellranger_arc_count.per_barcode_metrics_summary_csv, cellranger_arc_per_barcode_metrics_summary_csv]) #!FileCoercion
 		File gex_possorted_bam_output = select_first([cellranger_arc_count.gex_possorted_bam, cellranger_arc_gex_possorted_bam]) #!FileCoercion
@@ -377,7 +377,7 @@ workflow preprocess {
 		Array[File] multiome_outputs_tar_gz = multiome_outputs_tar_gz_output #!FileCoercion
 		Array[File] raw_counts = raw_counts_output #!FileCoercion
 		Array[File] filtered_counts = filtered_counts_output #!FileCoercion
-		Array[File] molecule_info = molecule_info_output #!FileCoercion
+		Array[File] gex_molecule_info = gex_molecule_info_output #!FileCoercion
 		Array[File] metrics_summary_csv = metrics_summary_csv_output #!FileCoercion
 		Array[File] per_barcode_metrics_summary_csv = per_barcode_metrics_summary_csv_output #!FileCoercion
 		Array[File] gex_possorted_bam = gex_possorted_bam_output #!FileCoercion
@@ -568,7 +568,7 @@ task cellranger_arc_count {
 		# Rename outputs to include dataset and sample ID
 		mv ~{sample_id}/outs/raw_feature_bc_matrix.h5 ~{dataset_sample_id}.raw_feature_bc_matrix.h5
 		mv ~{sample_id}/outs/filtered_feature_bc_matrix.h5 ~{dataset_sample_id}.filtered_feature_bc_matrix.h5
-		mv ~{sample_id}/outs/molecule_info.h5 ~{dataset_sample_id}.molecule_info.h5
+		mv ~{sample_id}/outs/gex_molecule_info.h5 ~{dataset_sample_id}.gex_molecule_info.h5
 		mv ~{sample_id}/outs/summary.csv ~{dataset_sample_id}.summary.csv
 		mv ~{sample_id}/outs/per_barcode_metrics.csv ~{dataset_sample_id}.per_barcode_metrics.csv
 		mv ~{sample_id}/outs/gex_possorted_bam.bam ~{dataset_sample_id}.gex_possorted_bam.bam
@@ -589,7 +589,7 @@ task cellranger_arc_count {
 			-o "~{dataset_sample_id}.cellranger_arc_multiome_outputs.tar.gz" \
 			-o "~{dataset_sample_id}.raw_feature_bc_matrix.h5" \
 			-o "~{dataset_sample_id}.filtered_feature_bc_matrix.h5" \
-			-o "~{dataset_sample_id}.molecule_info.h5" \
+			-o "~{dataset_sample_id}.gex_molecule_info.h5" \
 			-o "~{dataset_sample_id}.summary.csv" \
 			-o "~{dataset_sample_id}.per_barcode_metrics.csv" \
 			-o "~{dataset_sample_id}.gex_possorted_bam.bam" \
@@ -608,7 +608,7 @@ task cellranger_arc_count {
 		String multiome_outputs_tar_gz = "~{raw_data_path}/~{dataset_sample_id}.cellranger_arc_multiome_outputs.tar.gz"
 		String raw_counts = "~{raw_data_path}/~{dataset_sample_id}.raw_feature_bc_matrix.h5"
 		String filtered_counts = "~{raw_data_path}/~{dataset_sample_id}.filtered_feature_bc_matrix.h5"
-		String molecule_info = "~{raw_data_path}/~{dataset_sample_id}.molecule_info.h5"
+		String gex_molecule_info = "~{raw_data_path}/~{dataset_sample_id}.gex_molecule_info.h5"
 		String metrics_summary_csv = "~{raw_data_path}/~{dataset_sample_id}.summary.csv"
 		String per_barcode_metrics_summary_csv = "~{raw_data_path}/~{dataset_sample_id}.per_barcode_metrics.csv"
 		String gex_possorted_bam = "~{raw_data_path}/~{dataset_sample_id}.gex_possorted_bam.bam"
