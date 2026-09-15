@@ -16,7 +16,7 @@ def main(args):
     subject_to_sample = dict(zip(metadata["source_subject_id"], metadata["sample_id"]))
 
     adata = anndata_from_h5(
-        filename=args.cellbender_counts
+        file=args.cellbender_counts
     )
     adata.var_names_make_unique()
 
