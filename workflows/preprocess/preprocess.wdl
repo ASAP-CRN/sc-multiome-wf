@@ -224,6 +224,7 @@ workflow preprocess {
 			if (run_atac_split_demux_fragments) {
 				call ScAtacPreprocess.split_demux_fragments as atac_split_demux_fragments {
 					input:
+						dataset_sample_pool_id = mux_dataset_sample_pool_id,
 						pool_id = sample.sample_id,
 						source_subject_ids = source_subject_id[index],
 						sample_ids = mux_sample_id[index],
