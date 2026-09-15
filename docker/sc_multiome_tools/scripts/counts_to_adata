@@ -22,7 +22,7 @@ def prep_metadata(
 
     adata.var_names_make_unique()
     adata.var["mt"] = adata.var_names.str.contains(r"^MT-", case=False, regex=True)
-    adata.var["rb"] = adata.var_names.str.contains(r"^(RPL|RPS|MRPL|MRPS)", case=False, regex=True)
+    adata.var["rb"] = adata.var_names.str.contains(r"^(?:RPL|RPS|MRPL|MRPS)", case=False, regex=True)
     sc.pp.calculate_qc_metrics(
         adata,
         qc_vars=["rb", "mt"],
