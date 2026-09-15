@@ -219,12 +219,12 @@ workflow preprocess {
 				}
 			}
 
-			Array[File] sample_demux_cellbender_counts_output = select_first([rna_demux_counts.sample_demux_cellbender_counts, rna_demux_counts_output]) #!FileCoercion
+			Array[File] sample_demux_cellbender_counts_output = select_first([rna_demux_counts.sample_demux_cellbender_counts, rna_demux_counts_output[index]]) #!FileCoercion
 
 			if (run_atac_split_demux_fragments) {
 				call ScAtacPreprocess.split_demux_fragments as atac_split_demux_fragments {
 					input:
-						dataset_sample_pool_id = mux_dataset_sample_pool_id,
+						dataset_id = dataset_id,
 						pool_id = sample.sample_id,
 						source_subject_ids = source_subject_id[index],
 						sample_ids = mux_sample_id[index],
@@ -239,7 +239,7 @@ workflow preprocess {
 				}
 			}
 
-			Array[File] sample_demux_fragments_tsv_gz_output = select_first([atac_split_demux_fragments.sample_split_fragments_tsv_gz, atac_demux_fragments_output]) #!FileCoercion
+			Array[File] sample_demux_fragments_tsv_gz_output = select_first([atac_split_demux_fragments.sample_split_fragments_tsv_gz, atac_demux_fragments_output[index]]) #!FileCoercion
 
 			call check_output_files_exist as check_rna_demux_adata_output_files_exist {
 				input:
