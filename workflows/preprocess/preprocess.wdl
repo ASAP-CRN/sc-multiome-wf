@@ -3,9 +3,6 @@ version 1.0
 # Generate a preprocessed AnnData object
 
 import "../structs.wdl"
-import "../../sc-rnaseq-wf/workflows/preprocess/preprocess.wdl" as ScRnaPreprocess
-	alias Project as RnaProject
-	alias Sample as RnaSample
 import "../../sc-atacseq-wf/workflows/preprocess/preprocess.wdl" as ScAtacPreprocess
 	alias Project as AtacProject
 	alias Sample as AtacSample
@@ -164,7 +161,7 @@ workflow preprocess {
 		String cellbender_posterior_probability = "~{rna_cellbender_raw_data_path}/~{dataset_sample_id}.cellbend_posterior.h5"
 
 		if (run_rna_cellbender) {
-			call ScRnaPreprocess.remove_technical_artifacts as rna_remove_technical_artifacts {
+			call rna_remove_technical_artifacts {
 				input:
 					dataset_sample_id = dataset_sample_id,
 					raw_counts = raw_counts_output,
@@ -646,6 +643,94 @@ task cellranger_arc_count {
 		fastq_I2s: {help: "Optional FASTQ index 2."}
 		cellranger_arc_reference_data: {help: "CellRanger ARC reference data; see https://www.10xgenomics.com/support/software/cell-ranger-arc/downloads."}
 		raw_data_path: {help: "Raw data bucket path for cellranger-arc count outputs; location of raw bucket to upload task outputs to (`<raw_data_bucket>/workflow_execution/preprocess/cellranger_arc/<cellranger_arc_task_version>`)."}
+		workflow_info: {help: "UTC timestamp, workflow name, workflow version, and GitHub release; stored in the file-level manifest and final manifest with all saved files."}
+		billing_project: {help: "Billing project to charge GCP costs."}
+		container_registry: {help: "Container registry where workflow Docker images are hosted."}
+		zones: {help: "Space-delimited set of GCP zones to spin up compute in. ['us-central1-c us-central1-f']"}
+	}
+}
+
+task rna_remove_technical_artifacts {
+	input {
+		String dataset_sample_id
+
+		File raw_counts
+
+		Float cellbender_fpr
+
+		String raw_data_path
+		Array[Array[String]] workflow_info
+		String billing_project
+		String container_registry
+		String zones
+	}
+
+	Int disk_size = ceil(size(raw_counts, "GB") * 2 + 50)
+
+	command <<<
+		set -euo pipefail
+
+		nvidia-smi
+
+		export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
+
+		# The cellranger-arc raw matrix holds both Gene Expression and Peaks features
+		/usr/bin/time \
+		cellbender remove-background \
+			--cuda \
+			--input ~{raw_counts} \
+			--output ~{dataset_sample_id}.cellbender. \
+			--exclude-feature-types Peaks \
+			--fpr ~{cellbender_fpr}
+
+		mv ckpt.tar.gz "~{dataset_sample_id}.cellbender_ckpt.tar.gz"
+
+		upload_outputs \
+			-b ~{billing_project} \
+			-d ~{raw_data_path} \
+			-i ~{write_tsv(workflow_info)} \
+			-o "~{dataset_sample_id}.cellbender_report.html" \
+			-o "~{dataset_sample_id}.cellbender.h5" \
+			-o "~{dataset_sample_id}.cellbender_filtered.h5" \
+			-o "~{dataset_sample_id}.cellbender_cell_barcodes.csv" \
+			-o "~{dataset_sample_id}.cellbender.pdf" \
+			-o "~{dataset_sample_id}.cellbender.log" \
+			-o "~{dataset_sample_id}.cellbender_metrics.csv" \
+			-o "~{dataset_sample_id}.cellbend_posterior.h5"
+	>>>
+
+	output {
+		String report_html = "~{raw_data_path}/~{dataset_sample_id}.cellbender_report.html"
+		String removed_background_counts = "~{raw_data_path}/~{dataset_sample_id}.cellbender.h5"
+		String filtered_removed_background_counts = "~{raw_data_path}/~{dataset_sample_id}.cellbender_filtered.h5"
+		String cell_barcodes_csv = "~{raw_data_path}/~{dataset_sample_id}.cellbender_cell_barcodes.csv"
+		String graph_pdf = "~{raw_data_path}/~{dataset_sample_id}.cellbender.pdf"
+		String log = "~{raw_data_path}/~{dataset_sample_id}.cellbender.log"
+		String metrics_csv = "~{raw_data_path}/~{dataset_sample_id}.cellbender_metrics.csv"
+		String posterior_probability = "~{raw_data_path}/~{dataset_sample_id}.cellbend_posterior.h5"
+	}
+
+	runtime {
+		docker: "~{container_registry}/cellbender:0.3.0"
+		cpu: 4
+		memory: "64 GB"
+		disks: "local-disk ~{disk_size} HDD"
+		preemptible: 3
+		bootDiskSizeGb: 40
+		zones: zones
+		gpuType: "nvidia-tesla-t4"
+		gpuCount: 1
+	}
+
+	meta {
+		description: "Removes ambient RNA and technical noise from the Gene Expression features of raw cellranger-arc count matrices using CellBender."
+	}
+
+	parameter_meta {
+		dataset_sample_id: {help: "Generated ASAP dataset ID and sample ID; stored in the AnnData objects."}
+		raw_counts: {help: "Raw cellranger-arc count matrix (H5 format) to process; Peaks features are excluded and only Gene Expression features are processed."}
+		cellbender_fpr: {help: "Cellbender false positive rate. [0.0]"}
+		raw_data_path: {help: "Raw data bucket path for cellbender outputs; location of raw bucket to upload task outputs to (`<raw_data_bucket>/workflow_execution/preprocess/cellbender/<cellbender_task_version>`)."}
 		workflow_info: {help: "UTC timestamp, workflow name, workflow version, and GitHub release; stored in the file-level manifest and final manifest with all saved files."}
 		billing_project: {help: "Billing project to charge GCP costs."}
 		container_registry: {help: "Container registry where workflow Docker images are hosted."}
