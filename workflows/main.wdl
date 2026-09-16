@@ -187,6 +187,7 @@ workflow sc_multiome_analysis {
 					run_timestamp = get_workflow_metadata.timestamp,
 					raw_data_path_prefix = project_raw_data_path_prefix,
 					staging_data_buckets = project.staging_data_buckets,
+					staging_modality = "rna",
 					billing_project = get_workflow_metadata.billing_project,
 					container_registry = container_registry,
 					zones = zones
@@ -215,6 +216,7 @@ workflow sc_multiome_analysis {
 					run_timestamp = get_workflow_metadata.timestamp,
 					raw_data_path_prefix = project_raw_data_path_prefix,
 					staging_data_buckets = project.staging_data_buckets,
+					staging_modality = "atac",
 					billing_project = get_workflow_metadata.billing_project,
 					container_registry = container_registry,
 					zones = zones
@@ -255,6 +257,7 @@ workflow sc_multiome_analysis {
 					run_timestamp = get_workflow_metadata.timestamp,
 					raw_data_path_prefix = project_raw_data_path_prefix,
 					staging_data_buckets = project.staging_data_buckets,
+					staging_modality = "multiome",
 					billing_project = get_workflow_metadata.billing_project,
 					container_registry = container_registry,
 					zones = zones
@@ -294,6 +297,7 @@ workflow sc_multiome_analysis {
 				run_timestamp = get_workflow_metadata.timestamp,
 				raw_data_path_prefix = cohort_raw_data_path_prefix,
 				staging_data_buckets = cohort_staging_data_buckets,
+				staging_modality = "rna",
 				billing_project = get_workflow_metadata.billing_project,
 				container_registry = container_registry,
 				zones = zones
@@ -322,6 +326,7 @@ workflow sc_multiome_analysis {
 				run_timestamp = get_workflow_metadata.timestamp,
 				raw_data_path_prefix = cohort_raw_data_path_prefix,
 				staging_data_buckets = cohort_staging_data_buckets,
+				staging_modality = "atac",
 				billing_project = get_workflow_metadata.billing_project,
 				container_registry = container_registry,
 				zones = zones
@@ -362,6 +367,7 @@ workflow sc_multiome_analysis {
 				run_timestamp = get_workflow_metadata.timestamp,
 				raw_data_path_prefix = cohort_raw_data_path_prefix,
 				staging_data_buckets = cohort_staging_data_buckets,
+				staging_modality = "multiome",
 				billing_project = get_workflow_metadata.billing_project,
 				container_registry = container_registry,
 				zones = zones
