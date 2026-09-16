@@ -150,10 +150,14 @@ workflow sc_multiome_analysis {
 			preprocess.log,
 			preprocess.metrics_csv,
 			preprocess.posterior_probability,
+			preprocess.rna_sample_demux_cellbender_counts,
+			preprocess.rna_initial_demux_adata_object,
 			preprocess.rna_initial_adata_object
 		]) #!StringCoercion
 
 		Array[String] atac_preprocessing_output_file_paths = flatten([
+			preprocess.atac_sample_split_fragments_tsv_gz,
+			preprocess.atac_initial_demux_adata_object,
 			preprocess.atac_initial_adata_object
 		]) #!StringCoercion
 
