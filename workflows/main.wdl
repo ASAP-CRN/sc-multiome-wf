@@ -27,6 +27,7 @@ workflow sc_multiome_analysis {
 		Array[Int] n_genes_by_counts_limits = [100, 10000]
 
 		# Allen Institute's Map My Cells
+		String mmc_taxonomy
 		File allen_brain_mmc_precomputed_stats_h5
 
 		# Normalization parameters
@@ -172,6 +173,7 @@ workflow sc_multiome_analysis {
 					doublet_score_max = doublet_score_max,
 					total_counts_limits = total_counts_limits,
 					n_genes_by_counts_limits = n_genes_by_counts_limits,
+					mmc_taxonomy = mmc_taxonomy,
 					allen_brain_mmc_precomputed_stats_h5 = allen_brain_mmc_precomputed_stats_h5,
 					norm_target_sum = norm_target_sum,
 					n_top_genes = n_top_genes,
@@ -203,6 +205,7 @@ workflow sc_multiome_analysis {
 					project_sample_ids = preprocess.project_sample_ids,
 					preprocessed_adata_objects = flatten([preprocess.atac_initial_demux_adata_object, preprocess.atac_initial_adata_object]),
 					preprocessing_output_file_paths = atac_preprocessing_output_file_paths,
+					mmc_taxonomy = mmc_taxonomy,
 					allen_brain_mmc_precomputed_stats_h5 = allen_brain_mmc_precomputed_stats_h5,
 					n_top_genes = n_top_genes,
 					n_comps = n_comps,
@@ -282,6 +285,7 @@ workflow sc_multiome_analysis {
 				doublet_score_max = doublet_score_max,
 				total_counts_limits = total_counts_limits,
 				n_genes_by_counts_limits = n_genes_by_counts_limits,
+				mmc_taxonomy = mmc_taxonomy,
 				allen_brain_mmc_precomputed_stats_h5 = allen_brain_mmc_precomputed_stats_h5,
 				norm_target_sum = norm_target_sum,
 				n_top_genes = n_top_genes,
@@ -313,6 +317,7 @@ workflow sc_multiome_analysis {
 				project_sample_ids = flatten(preprocess.project_sample_ids),
 				preprocessed_adata_objects = flatten(flatten([preprocess.atac_initial_demux_adata_object, preprocess.atac_initial_adata_object])),
 				preprocessing_output_file_paths = flatten(atac_preprocessing_output_file_paths),
+				mmc_taxonomy = mmc_taxonomy,
 				allen_brain_mmc_precomputed_stats_h5 = allen_brain_mmc_precomputed_stats_h5,
 				n_top_genes = n_top_genes,
 				n_comps = n_comps,
@@ -679,6 +684,7 @@ workflow sc_multiome_analysis {
 		doublet_score_max: {help: "Maximum doublet detection score threshold. [0.2]"}
 		total_counts_limits: {help: "Minimum and maximum total UMI (unique molecular identifier) counts per cell. [100, 100000]"}
 		n_genes_by_counts_limits: {help: "Minimum and maximum number of genes detected per cell (genes with at least one count). [100, 10000]"}
+		mmc_taxonomy: {help: "Cell type taxonomy of the precomputed stats reference; appended to MMC output filenames. Must match allen_brain_mmc_precomputed_stats_h5. Options are 'SEEAD' (human), 'Siletti' (human), or 'ABC' (mouse)."}
 		allen_brain_mmc_precomputed_stats_h5: {help: "A precomputed statistics file from the Allen Brain Cell Atlas containing reference statistics (the average gene expression profile per cell type cluster and cell type taxonomy)."}
 		norm_target_sum: {help: "The total count value that each cell will be normalized to. [10000]"}
 		n_top_genes: {help: "Number of HVG genes to keep. [3000]"}

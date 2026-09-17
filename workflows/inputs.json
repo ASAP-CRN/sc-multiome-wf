@@ -9,6 +9,7 @@
   "sc_multiome_analysis.doublet_score_max": "Float (optional, default = 0.2)",
   "sc_multiome_analysis.total_counts_limits": "Array[Int] (optional, default = [100, 100000])",
   "sc_multiome_analysis.n_genes_by_counts_limits": "Array[Int] (optional, default = [100, 10000])",
+  "sc_rnaseq_analysis.mmc_taxonomy": "String ('SEAAD', 'Siletti', or 'ABC')",
   "sc_multiome_analysis.allen_brain_mmc_precomputed_stats_h5": "File",
   "sc_multiome_analysis.norm_target_sum": "Int (optional, default = 10000)",
   "sc_multiome_analysis.n_top_genes": "Int (optional, default = 3000)",
