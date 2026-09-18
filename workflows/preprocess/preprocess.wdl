@@ -44,7 +44,7 @@ workflow preprocess {
 	Array[Array[String]] workflow_info = [[run_timestamp, workflow_name, workflow_version, workflow_release]]
 
 	String workflow_raw_data_path_prefix = "~{raw_data_path_prefix}/~{sub_workflow_name}"
-	String cellranger_arc_raw_data_path = "~{workflow_raw_data_path_prefix}/cellranger_arc/~{cellranger_arc_task_version}"
+	String cellranger_arc_raw_data_path = "~{workflow_raw_data_path_prefix}/multiome/cellranger_arc/~{cellranger_arc_task_version}"
 	String rna_cellbender_raw_data_path = "~{workflow_raw_data_path_prefix}/rna/remove_technical_artifacts/~{cellbender_task_version}"
 	String rna_demux_counts_raw_data_path = "~{workflow_raw_data_path_prefix}/rna/split_demux_counts/~{rna_demux_counts_task_version}"
 	String rna_demux_adata_raw_data_path = "~{workflow_raw_data_path_prefix}/rna/counts_to_adata/~{rna_demux_adata_task_version}"

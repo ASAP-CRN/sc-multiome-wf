@@ -49,8 +49,8 @@ workflow cohort_analysis {
 		String crn_release_version
 		String run_timestamp
 		String raw_data_path_prefix
+		String? modality
 		Array[String] staging_data_buckets
-		String? staging_modality
 		String billing_project
 		String container_registry
 		String zones
@@ -61,12 +61,12 @@ workflow cohort_analysis {
 
 	Array[Array[String]] workflow_info = [[run_timestamp, workflow_name, workflow_version, workflow_release]]
 
-	String raw_data_path = "~{raw_data_path_prefix}/~{sub_workflow_name}/~{sub_workflow_version}/~{run_timestamp}"
+	String raw_data_path = "~{raw_data_path_prefix}/~{sub_workflow_name}/~{sub_workflow_version}/~{run_timestamp}/multiome"
 
 	# Each modality needs its own staging prefix
 	String staging_path_prefix = "~{workflow_name}/release/~{crn_release_version}"
-	String preprocess_staging_data_path = if defined(staging_modality) then "~{staging_path_prefix}/preprocess/~{staging_modality}" else "~{staging_path_prefix}/preprocess"
-	String cohort_staging_data_path = if defined(staging_modality) then "~{staging_path_prefix}/~{sub_workflow_name}/~{staging_modality}" else "~{staging_path_prefix}/~{sub_workflow_name}"
+	String preprocess_staging_data_path = if defined(modality) then "~{staging_path_prefix}/preprocess/~{modality}" else "~{staging_path_prefix}/preprocess"
+	String cohort_staging_data_path = if defined(modality) then "~{staging_path_prefix}/~{sub_workflow_name}/~{modality}" else "~{staging_path_prefix}/~{sub_workflow_name}"
 
 	call WriteCohortSampleList.write_cohort_sample_list {
 		input:
@@ -279,8 +279,8 @@ workflow cohort_analysis {
 		crn_release_version: {help: "CRN Cloud release version; used to organize outputs and for the CRN Cloud release."}
 		run_timestamp: {help: "UTC timestamp; stored in the file-level manifest and final manifest with all saved files."}
 		raw_data_path_prefix: {help: "Raw data bucket path prefix; location of raw bucket to upload task outputs to (`<raw_data_bucket>/workflow_execution/cohort_analysis`)."}
+		modality: {help: "Modality subdirectory ('rna', 'atac', or 'multiome') appended to the raw and staging data paths; set when several modality sub-workflows run together so they do not overwrite each other's outputs. Omit to write directly under the base paths."}
 		staging_data_buckets: {help: "Array of staging data buckets to upload intermediate files to (i.e., DEV or UAT buckets depending on internal QC status)."}
-		staging_modality: {help: "Modality subdirectory ('rna', 'atac', or 'multiome') appended to the staging data paths; set when several modality sub-workflows stage into the same bucket so they do not overwrite each other. Omit to stage directly under the release path."}
 		billing_project: {help: "Billing project to charge GCP costs."}
 		container_registry: {help: "Container registry where workflow Docker images are hosted."}
 		zones: {help: "Space-delimited set of GCP zones to spin up compute in. ['us-central1-c us-central1-f']"}
