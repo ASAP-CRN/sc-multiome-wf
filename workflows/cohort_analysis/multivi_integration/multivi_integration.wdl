@@ -139,7 +139,7 @@ task integrate_multivi {
 	}
 
 	runtime {
-		docker: "~{container_registry}/scvi_tools:1.0.0"
+		docker: "~{container_registry}/scvi_tools:1.1.0"
 		cpu: 8
 		memory: "~{mem_gb} GB"
 		disks: "local-disk ~{disk_size} HDD"
@@ -215,7 +215,7 @@ task cluster_multivi {
 	}
 
 	runtime {
-		docker: "~{container_registry}/scvi_tools:1.0.0"
+		docker: "~{container_registry}/scvi_tools:1.1.0"
 		cpu: 4
 		cpuPlatform: "Intel Cascade Lake"
 		memory: "~{mem_gb} GB"
