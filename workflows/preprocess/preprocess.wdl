@@ -103,7 +103,7 @@ workflow preprocess {
 		String cellranger_arc_raw_counts = "~{cellranger_arc_raw_data_path}/~{dataset_sample_id}.raw_feature_bc_matrix.h5"
 		String cellranger_arc_filtered_counts = "~{cellranger_arc_raw_data_path}/~{dataset_sample_id}.filtered_feature_bc_matrix.h5"
 		String cellranger_arc_gex_molecule_info = "~{cellranger_arc_raw_data_path}/~{dataset_sample_id}.gex_molecule_info.h5"
-		String cellranger_arc_metrics_summary_csv = "~{cellranger_arc_raw_data_path}/~{dataset_sample_id}.metrics_summary.csv"
+		String cellranger_arc_metrics_summary_csv = "~{cellranger_arc_raw_data_path}/~{dataset_sample_id}.summary.csv"
 		String cellranger_arc_per_barcode_metrics_summary_csv = "~{cellranger_arc_raw_data_path}/~{dataset_sample_id}.per_barcode_metrics.csv"
 		String cellranger_arc_gex_possorted_bam = "~{cellranger_arc_raw_data_path}/~{dataset_sample_id}.gex_possorted_bam.bam"
 		String cellranger_arc_gex_possorted_bam_index = "~{cellranger_arc_raw_data_path}/~{dataset_sample_id}.gex_possorted_bam.bam.bai"
