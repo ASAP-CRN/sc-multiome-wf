@@ -16,6 +16,7 @@ workflow cohort_analysis {
 		Array[String] preprocessing_output_file_paths = []
 
 		Array[File] cellranger_arc_feature_linkage_bedpe
+		Array[File] per_barcode_metrics_csvs
 
 		File filtered_rna_adata_object
 		File filtered_atac_adata_object
@@ -84,6 +85,7 @@ workflow cohort_analysis {
 			cohort_id = cohort_id,
 			filtered_rna_adata_object = filtered_rna_adata_object,
 			filtered_atac_adata_object = filtered_atac_adata_object,
+			per_barcode_metrics_csvs = per_barcode_metrics_csvs,
 			min_overlap_frac = min_overlap_frac,
 			raw_data_path = raw_data_path,
 			workflow_info = workflow_info,
@@ -253,6 +255,7 @@ workflow cohort_analysis {
 		preprocessing_output_file_paths: {help: "Selected preprocessed output files to upload to the staging bucket alongside selected cohort analysis output files."}
 		filtered_rna_adata_object: {help: "Cohort-level filtered RNA AnnData ({cohort}.filtered.h5ad from the RNA `filter` task)"}
 		filtered_atac_adata_object: {help: "Cohort-level filtered ATAC AnnData ({cohort}.merged_filtered.h5ad from the ATAC `merge_and_qc` task)"}
+		per_barcode_metrics_csvs: {help: "Per-sample Cell Ranger ARC per_barcode_metrics.csv files, one per ARC run, from preprocess; cells are restricted to barcodes ARC called (is_cell == 1) before pairing the modalities."}
 		labeled_cells_rna_adata_object: {help: "RNA pipeline labeled AnnData (labeled cells AnnData object from sc-rnaseq-wf) holding the label column."}
 		min_overlap_frac: {help: "Minimum fraction of the smaller modality that must be shared; below this the run fails as a likely barcode-key mismatch [0.5]"}
 		batch_key: {help: "Key in MuData object for batch information. ['batch_id']"}
@@ -293,6 +296,7 @@ task joint_qc {
 
 		File filtered_rna_adata_object
 		File filtered_atac_adata_object
+		Array[File] per_barcode_metrics_csvs
 		Float min_overlap_frac
 
 		String raw_data_path
@@ -312,6 +316,7 @@ task joint_qc {
 		joint_qc \
 			--rna-adata-input ~{filtered_rna_adata_object} \
 			--atac-adata-input ~{filtered_atac_adata_object} \
+			--per-barcode-metrics ~{sep=" " per_barcode_metrics_csvs} \
 			--min-overlap-frac ~{min_overlap_frac} \
 			--mudata-output "~{cohort_id}.filtered.h5mu"
 
@@ -344,6 +349,7 @@ task joint_qc {
 		cohort_id: {help: "Name of the cohort; used to name output files."}
 		filtered_rna_adata_object: {help: "Cohort-level filtered RNA AnnData ({cohort}.filtered.h5ad from the RNA `filter` task)."}
 		filtered_atac_adata_object: {help: "Cohort-level filtered ATAC AnnData ({cohort}.merged_filtered.h5ad from the ATAC `merge_and_qc` task)"}
+		per_barcode_metrics_csvs: {help: "Per-sample Cell Ranger ARC per_barcode_metrics.csv files, one per ARC run, from preprocess; cells are restricted to barcodes ARC called (is_cell == 1) before pairing the modalities."}
 		min_overlap_frac: {help: "Minimum fraction of the smaller modality that must be shared; below this the run fails as a likely barcode-key mismatch. [0.5]"}
 		raw_data_path: {help: "Raw data bucket path for outputs; location of raw bucket to upload task outputs to (`<raw_data_bucket>/workflow_execution/cohort_analysis/<cohort_analysis_version>/<run_timestamp>`)."}
 		workflow_info: {help: "UTC timestamp, workflow name, workflow version, and GitHub release; stored in the file-level manifest and final manifest with all saved files."}

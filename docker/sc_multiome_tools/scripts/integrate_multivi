@@ -32,10 +32,16 @@ def build_paired_anndata(mdata: md.MuData, counts_layer: str):
     """
     print(f"Building paired AnnData from MuData...")
 
-    # Shared barcodes only (should already hold post joint_qc_intersect)
-    md.pp.intersect_obs(mdata)
+    # Shared barcodes only. joint_qc subsets both modalities to the same index, so
+    # this already holds; assert it rather than re-deriving, since intersect_obs is
+    # a muon function and mudata (the data structure alone) has no `pp`.
     rna = mdata.mod["rna"]
     atac = mdata.mod["atac"]
+    if not rna.obs_names.equals(atac.obs_names):
+        raise ValueError(
+            f"RNA and ATAC observation axes differ (RNA={rna.n_obs}, ATAC={atac.n_obs}). "
+            "MULTIVI requires fully paired cells; rebuild the MuData with joint_qc."
+        )
 
     # Keep only selected features per modality (mirrors integrate_peakvi/integrate_scvi).
     # NB: verify the column name -- RNA `process` may call this 'highly_variable'.
