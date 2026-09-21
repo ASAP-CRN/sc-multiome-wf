@@ -2,6 +2,7 @@
 
 import argparse
 import numpy as np
+import anndata
 import pandas as pd
 import scipy.sparse as sp
 import mudata as md
@@ -112,6 +113,8 @@ def link_by_celltype(
 
 
 def main(args):
+    anndata.settings.allow_write_nullable_strings = False
+
     mdata = md.read_h5mu(args.mudata_input)
     peaks = sc.read_h5ad(args.celltype_peaks_adata_input)
     tss = load_gene_tss(args.tss_bed)

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import anndata
 import pandas as pd
 import scanpy as sc
 import mudata as md
@@ -24,15 +25,17 @@ def harvest_labels(labeled_rna: sc.AnnData, label_key: str):
 
 def plain_string_index(mdata):
     """
-    Force obs indices to plain object dtype.
+    Force obs and var indices to plain object dtype, on the MuData and every mod.
 
     anndata >= 0.11 refuses to write pandas nullable string arrays without an
-    explicit opt-in, and an index inherits that dtype from whatever produced it
+    explicit opt-in, and indices inherit that dtype from whatever produced them
     upstream. Indices never carry NA, so object dtype is the correct, portable form.
     """
-    mdata.obs.index = pd.Index(mdata.obs_names.to_numpy(dtype=object))
+    for frame in (mdata.obs, mdata.var):
+        frame.index = pd.Index(frame.index.to_numpy(dtype=object))
     for mod in mdata.mod.values():
-        mod.obs.index = pd.Index(mod.obs_names.to_numpy(dtype=object))
+        for frame in (mod.obs, mod.var):
+            frame.index = pd.Index(frame.index.to_numpy(dtype=object))
     return mdata
 
 
@@ -72,6 +75,10 @@ def transfer_labels(mdata: md.MuData, labels):
 
 
 def main(args):
+    # Any string array that is still nullable gets written in the legacy,
+    # widely-readable format rather than failing the task.
+    anndata.settings.allow_write_nullable_strings = False
+
     mdata = md.read_h5mu(args.mudata_input)
     labeled_rna = sc.read_h5ad(args.labeled_rna_input)
 
