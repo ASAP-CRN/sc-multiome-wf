@@ -94,7 +94,9 @@ def intersect_and_build(
     adata_atac = adata_atac[shared].copy()
 
     # Both modalities take RNA's identifier for the same cell.
-    native = pd.Index(rna_native.loc[shared].values)
+    # object dtype, not pandas nullable string: anndata >= 0.11 will not write
+    # nullable string arrays without an explicit opt-in.
+    native = pd.Index(rna_native.loc[shared].to_numpy(dtype=object))
     adata_rna.obs_names = native
     adata_atac.obs_names = native
     print(f"Index format: {native[0]}")

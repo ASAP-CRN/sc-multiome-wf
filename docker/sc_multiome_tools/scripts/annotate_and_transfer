@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import pandas as pd
 import scanpy as sc
 import mudata as md
 import hdf5plugin
@@ -19,6 +20,20 @@ def harvest_labels(labeled_rna: sc.AnnData, label_key: str):
     print(f"Harvested {labels.nunique()} distinct '{label_key}' labels "
           f"from {len(labels)} RNA cells")
     return labels
+
+
+def plain_string_index(mdata):
+    """
+    Force obs indices to plain object dtype.
+
+    anndata >= 0.11 refuses to write pandas nullable string arrays without an
+    explicit opt-in, and an index inherits that dtype from whatever produced it
+    upstream. Indices never carry NA, so object dtype is the correct, portable form.
+    """
+    mdata.obs.index = pd.Index(mdata.obs_names.to_numpy(dtype=object))
+    for mod in mdata.mod.values():
+        mod.obs.index = pd.Index(mod.obs_names.to_numpy(dtype=object))
+    return mdata
 
 
 def transfer_labels(mdata: md.MuData, labels):
@@ -62,6 +77,7 @@ def main(args):
 
     labels = harvest_labels(labeled_rna, args.label_key)
     mdata = transfer_labels(mdata, labels)
+    mdata = plain_string_index(mdata)
 
     mdata.write(
         filename=args.mudata_output,
