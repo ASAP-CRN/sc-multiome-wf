@@ -43,6 +43,27 @@ def parse_one_bedpe(bedpe_path: str, sample_id: str, keep_peak_gene_only: bool):
     return links.reset_index(drop=True)
 
 
+def resolve_sample_key(mdata: md.MuData, file_ids: set, sample_key: str) -> str:
+    """
+    Pick the obs column the BEDPE filenames actually correspond to.
+
+    Cell Ranger ARC runs once per pool, so the BEDPEs are named
+    {dataset_id}.{pool_id} for pooled data and {dataset_id}.{sample_id} when a
+    sample was not pooled. Demultiplexed objects carry the donor in obs['sample']
+    and the pool in obs['pool'], so 'sample' only matches for unpooled data.
+    Prefer whichever column the filenames resolve into.
+    """
+    candidates = [sample_key] + [k for k in ("pool", "sample") if k != sample_key]
+    for key in candidates:
+        if key not in mdata.obs:
+            continue
+        if file_ids <= set(mdata.obs[key].astype(str).unique()):
+            if key != sample_key:
+                print(f"BEDPE ids match obs['{key}'], not obs['{sample_key}']; using '{key}'")
+            return key
+    return sample_key
+
+
 def stack_linkages(
     mdata: md.MuData, bedpe_paths, sample_key: str, corr_threshold: float,
     significance_threshold: float, keep_peak_gene_only: bool
@@ -53,6 +74,9 @@ def stack_linkages(
     NOT comparable across samples and we deliberately do not collapse to a
     cross-sample consensus.
     """
+    file_ids = {sample_id_from_filename(p) for p in bedpe_paths}
+    sample_key = resolve_sample_key(mdata, file_ids, sample_key)
+
     obs_samples = set(mdata.obs[sample_key].astype(str).unique())
     print(f"Sample IDs in merged object ({sample_key}): {sorted(obs_samples)}")
 
@@ -62,10 +86,11 @@ def stack_linkages(
         sid = sample_id_from_filename(path)
         if sid not in obs_samples:
             raise ValueError(
-                f"BEDPE '{os.path.basename(path)}' resolves to sample_id "
-                f"'{sid}', which is not present in mdata.obs['{sample_key}']. "
-                f"Check the filename convention or the array of BEDPEs. "
-                f"Known samples: {sorted(obs_samples)}."
+                f"BEDPE '{os.path.basename(path)}' resolves to id '{sid}', "
+                f"which is not present in mdata.obs['{sample_key}'] "
+                f"(tried 'pool' and 'sample'). BEDPEs are named per Cell Ranger "
+                f"ARC run -- by pool for pooled data, by sample otherwise. "
+                f"Known ids: {sorted(obs_samples)}."
             )
         seen.add(sid)
         df = parse_one_bedpe(path, sid, keep_peak_gene_only)
