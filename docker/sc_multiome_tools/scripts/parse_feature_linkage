@@ -43,25 +43,49 @@ def parse_one_bedpe(bedpe_path: str, sample_id: str, keep_peak_gene_only: bool):
     return links.reset_index(drop=True)
 
 
-def resolve_sample_key(mdata: md.MuData, file_ids: set, sample_key: str) -> str:
+def candidate_id_columns(mdata: md.MuData, key: str):
     """
-    Pick the obs column the BEDPE filenames actually correspond to.
+    Every place a per-cell id column named `key` can live in a MuData: promoted to
+    the top level, kept per-modality as '<mod>:<key>', or only inside a modality.
+    MuData only promotes a column to .obs when the modalities agree on it, so the
+    bare name is often absent.
+    """
+    found = []
+    if key in mdata.obs:
+        found.append((f"obs['{key}']", mdata.obs[key]))
+    for name in mdata.mod:
+        prefixed = f"{name}:{key}"
+        if prefixed in mdata.obs:
+            found.append((f"obs['{prefixed}']", mdata.obs[prefixed]))
+    for name, mod in mdata.mod.items():
+        if key in mod.obs:
+            found.append((f"mod['{name}'].obs['{key}']", mod.obs[key].reindex(mdata.obs_names)))
+    return found
 
-    Cell Ranger ARC runs once per pool, so the BEDPEs are named
-    {dataset_id}.{pool_id} for pooled data and {dataset_id}.{sample_id} when a
-    sample was not pooled. Demultiplexed objects carry the donor in obs['sample']
-    and the pool in obs['pool'], so 'sample' only matches for unpooled data.
-    Prefer whichever column the filenames resolve into.
+
+def resolve_sample_ids(mdata: md.MuData, file_ids: set, sample_key: str):
     """
-    candidates = [sample_key] + [k for k in ("pool", "sample") if k != sample_key]
-    for key in candidates:
-        if key not in mdata.obs:
-            continue
-        if file_ids <= set(mdata.obs[key].astype(str).unique()):
-            if key != sample_key:
-                print(f"BEDPE ids match obs['{key}'], not obs['{sample_key}']; using '{key}'")
-            return key
-    return sample_key
+    Find the per-cell id column the BEDPE filenames correspond to.
+
+    Cell Ranger ARC runs once per pool, so BEDPEs are named {dataset_id}.{pool_id}
+    for pooled data and {dataset_id}.{sample_id} otherwise. Demultiplexed objects
+    carry the donor in 'sample' and the pool in 'pool', so prefer whichever column
+    actually contains the ids in the filenames.
+    """
+    searched = []
+    for key in [sample_key] + [k for k in ("pool", "sample") if k != sample_key]:
+        for where, series in candidate_id_columns(mdata, key):
+            values = set(series.astype(str).unique())
+            searched.append(f"{where} ({len(values)} ids)")
+            if file_ids <= values:
+                print(f"BEDPE ids resolved against {where}")
+                return series.astype(str)
+
+    raise ValueError(
+        f"No per-cell id column contains the BEDPE ids {sorted(file_ids)}. "
+        f"BEDPEs are named per Cell Ranger ARC run -- by pool for pooled data, "
+        f"by sample otherwise. Searched: {searched or 'nothing found'}."
+    )
 
 
 def stack_linkages(
@@ -75,10 +99,10 @@ def stack_linkages(
     cross-sample consensus.
     """
     file_ids = {sample_id_from_filename(p) for p in bedpe_paths}
-    sample_key = resolve_sample_key(mdata, file_ids, sample_key)
+    sample_ids = resolve_sample_ids(mdata, file_ids, sample_key)
 
-    obs_samples = set(mdata.obs[sample_key].astype(str).unique())
-    print(f"Sample IDs in merged object ({sample_key}): {sorted(obs_samples)}")
+    obs_samples = set(sample_ids.unique())
+    print(f"Sample IDs in merged object: {sorted(obs_samples)}")
 
     frames = []
     seen = set()
@@ -87,9 +111,7 @@ def stack_linkages(
         if sid not in obs_samples:
             raise ValueError(
                 f"BEDPE '{os.path.basename(path)}' resolves to id '{sid}', "
-                f"which is not present in mdata.obs['{sample_key}'] "
-                f"(tried 'pool' and 'sample'). BEDPEs are named per Cell Ranger "
-                f"ARC run -- by pool for pooled data, by sample otherwise. "
+                f"which is not among the resolved ids. "
                 f"Known ids: {sorted(obs_samples)}."
             )
         seen.add(sid)
@@ -157,7 +179,7 @@ if __name__ == "__main__":
         "--sample-key",
         type=str,
         default="sample",
-        help="Column in mdata.obs holding the sample id [sample]",
+        help="Preferred per-cell id column to match BEDPE filenames against; searched at the top level, as '<mod>:<key>', and inside each modality, falling back to 'pool' then 'sample' [sample]",
     )
     parser.add_argument(
         "-g",
