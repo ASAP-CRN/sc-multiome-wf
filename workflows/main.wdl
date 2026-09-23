@@ -715,7 +715,7 @@ workflow sc_multiome_analysis {
 		multivi_batch_size: {help: "Training batch size for MultiVI. Controls how many cells are processed per training step. [128]"}
 		tss_bed: {help: "Gene TSS table derived from the Cell Ranger ARC reference (regions/tss.bed), reshaped to three columns: chrom, tss, gene_name. Gene names must match the RNA modality var_names."}
 		celltype_key: {help: "Column in mdata.obs holding the transferred cell-type label. ['cell_type']"}
-		peak_gene_only: {help: "Keep only peak-gene linkages (drop peak-peak and gene-gene). [true]"}
+		peak_gene_only: {help: "Keep only peak-gene and gene-peak linkages (drop peak-peak). [true]"}
 		window: {help: "Distance in bp up- and downstream of each gene's TSS within which peaks are tested for linkage. [500000]"}
 		min_cells: {help: "Minimum number of cells in which a peak must be accessible to be tested. [10]"}
 		min_group_cells: {help: "Minimum number of cells in a cell type for linkage to be computed for that group; smaller groups are skipped as unstable. [50]"}
