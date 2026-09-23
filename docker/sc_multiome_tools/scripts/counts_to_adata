@@ -6,6 +6,24 @@ import scanpy as sc
 from cellbender.remove_background.downstream import anndata_from_h5
 
 
+def gene_expression_only(adata: sc.AnnData) -> sc.AnnData:
+    """
+    Drop non-gene features from a cellranger-arc matrix.
+
+    CellBender's --exclude-feature-types Peaks stops it *modelling* peaks; the
+    output h5 still carries every original feature. Leaving them in would put ATAC
+    peaks in the RNA object, where they inflate n_genes_by_counts / total_counts
+    and every downstream gene-keyed join.
+    """
+    if "feature_type" not in adata.var:
+        print("No var['feature_type']; keeping all features")
+        return adata
+    keep = adata.var["feature_type"] == "Gene Expression"
+    print(f"Features: {int(keep.sum())} Gene Expression kept, {int((~keep).sum())} dropped "
+          f"({sorted(adata.var.loc[~keep, 'feature_type'].unique())})")
+    return adata[:, keep].copy()
+
+
 def prep_metadata(
     adata: sc.AnnData,
     team_id: str,
@@ -61,6 +79,7 @@ def main(args):
             filename=args.cellbender_counts
         )
     adata.var_names_make_unique()
+    adata = gene_expression_only(adata)
     adata = prep_metadata(
         adata,
         team_id=args.team_id,

@@ -43,6 +43,7 @@ workflow cohort_analysis {
 		Float min_linkage_sig
 		Float corr_threshold
 		Float pval_threshold
+		Float fdr_threshold
 
 		String workflow_name
 		String workflow_version
@@ -153,7 +154,7 @@ workflow cohort_analysis {
 	call link_peaks_to_genes_by_celltype {
 		input:
 			cohort_id = cohort_id,
-			annotated_mudata_object = annotate_and_transfer.annotated_mudata_object,
+			annotated_mudata_object = parse_feature_linkage.feature_linked_mudata_object,
 			celltype_peaks_matrix_adata_object = celltype_peak_calling.peaks_matrix_adata_object, #!FileCoercion
 			tss_bed = tss_bed,
 			celltype_key = celltype_key,
@@ -162,6 +163,7 @@ workflow cohort_analysis {
 			min_group_cells = min_group_cells,
 			corr_threshold = corr_threshold,
 			pval_threshold = pval_threshold,
+			fdr_threshold = fdr_threshold,
 			raw_data_path = raw_data_path,
 			workflow_info = workflow_info,
 			billing_project = billing_project,
@@ -195,10 +197,10 @@ workflow cohort_analysis {
 			celltype_peak_calling.peaks_matrix_adata_object
 		],
 		[
-			parse_feature_linkage.feature_linked_mudata_object,
 			parse_feature_linkage.feature_linkage_csv
 		],
 		[
+			link_peaks_to_genes_by_celltype.linked_by_celltype_mudata_object,
 			link_peaks_to_genes_by_celltype.peak_gene_links_csv
 		]
 	]) #!StringCoercion
@@ -234,11 +236,11 @@ workflow cohort_analysis {
 		File celltype_peaks_matrix_adata_object = celltype_peak_calling.peaks_matrix_adata_object #!FileCoercion
 		
 		# Add Cell Ranger feature linkage bedpe to mudata object
-		File feature_linked_mudata_object = parse_feature_linkage.feature_linked_mudata_object #!FileCoercion
+		File feature_linked_mudata_object = parse_feature_linkage.feature_linked_mudata_object
 		File feature_linkage_csv = parse_feature_linkage.feature_linkage_csv #!FileCoercion
 
 		# Link peak-to-gene to cell types
-		File linked_by_celltype_mudata_object = link_peaks_to_genes_by_celltype.linked_by_celltype_mudata_object
+		File linked_by_celltype_mudata_object = link_peaks_to_genes_by_celltype.linked_by_celltype_mudata_object #!FileCoercion
 		File peak_gene_links_csv = link_peaks_to_genes_by_celltype.peak_gene_links_csv #!FileCoercion
 
 		Array[File] preprocess_manifest_tsvs = upload_preprocess_files.manifests #!FileCoercion
@@ -276,6 +278,7 @@ workflow cohort_analysis {
 		min_linkage_sig: {help: "Minimum feature linkage significance to retain. [0.0]"}
 		corr_threshold: {help: "Minimum absolute Pearson correlation between peak accessibility and gene expression to retain a link. [0.1]"}
 		pval_threshold: {help: "Maximum p-value to retain a link. [0.05]"}
+		fdr_threshold: {help: "Benjamini-Hochberg FDR applied across all peak-gene tests within a cell type; with ~1e5-1e6 tests per group a nominal p cut alone admits roughly chance-level links. [0.05]"}
 		workflow_name: {help: "Workflow name; stored in the file-level manifest and final manifest with all saved files."}
 		workflow_version: {help: "Workflow version; stored in the file-level manifest and final manifest with all saved files."}
 		workflow_release: {help: "GitHub release; stored in the file-level manifest and final manifest with all saved files."}
@@ -457,12 +460,11 @@ task parse_feature_linkage {
 			-b ~{billing_project} \
 			-d ~{raw_data_path} \
 			-i ~{write_tsv(workflow_info)} \
-			-o "~{cohort_id}.feature_linked.h5mu" \
 			-o "~{cohort_id}.feature_linkage_per_sample.csv"
 	>>>
 
 	output {
-		String feature_linked_mudata_object = "~{raw_data_path}/~{cohort_id}.feature_linked.h5mu"
+		File feature_linked_mudata_object = "~{cohort_id}.feature_linked.h5mu"
 		String feature_linkage_csv = "~{raw_data_path}/~{cohort_id}.feature_linkage_per_sample.csv"
 	}
 
@@ -509,6 +511,7 @@ task link_peaks_to_genes_by_celltype {
 		Int min_group_cells
 		Float corr_threshold
 		Float pval_threshold
+		Float fdr_threshold
 
 		String raw_data_path
 		Array[Array[String]] workflow_info
@@ -534,6 +537,7 @@ task link_peaks_to_genes_by_celltype {
 			--min-group-cells ~{min_group_cells} \
 			--corr-threshold ~{corr_threshold} \
 			--pval-threshold ~{pval_threshold} \
+			--fdr-threshold ~{fdr_threshold} \
 			--mudata-output ~{cohort_id}.linked_by_celltype.h5mu \
 			--links-output ~{cohort_id}.peak_gene_links_by_celltype.csv
 
@@ -541,11 +545,12 @@ task link_peaks_to_genes_by_celltype {
 			-b ~{billing_project} \
 			-d ~{raw_data_path} \
 			-i ~{write_tsv(workflow_info)} \
+			-o "~{cohort_id}.linked_by_celltype.h5mu" \
 			-o "~{cohort_id}.peak_gene_links_by_celltype.csv"
 	>>>
 
 	output {
-		File linked_by_celltype_mudata_object = "~{cohort_id}.linked_by_celltype.h5mu"
+		String linked_by_celltype_mudata_object = "~{raw_data_path}/~{cohort_id}.linked_by_celltype.h5mu"
 		String peak_gene_links_csv = "~{raw_data_path}/~{cohort_id}.peak_gene_links_by_celltype.csv"
 	}
 
@@ -574,6 +579,7 @@ task link_peaks_to_genes_by_celltype {
 		min_group_cells: {help: "Minimum number of cells in a cell type for linkage to be computed for that group; smaller groups are skipped as unstable. [50]"}
 		corr_threshold: {help: "Minimum absolute Pearson correlation between peak accessibility and gene expression to retain a link. [0.1]"}
 		pval_threshold: {help: "Maximum p-value to retain a link. [0.05]"}
+		fdr_threshold: {help: "Benjamini-Hochberg FDR applied across all peak-gene tests within a cell type; with ~1e5-1e6 tests per group a nominal p cut alone admits roughly chance-level links. [0.05]"}
 		raw_data_path: {help: "Raw data bucket path for outputs; location of raw bucket to upload task outputs to (`<raw_data_bucket>/workflow_execution/cohort_analysis/<cohort_analysis_version>/<run_timestamp>`)."}
 		workflow_info: {help: "UTC timestamp, workflow name, workflow version, and GitHub release; stored in the file-level manifest and final manifest with all saved files."}
 		billing_project: {help: "Billing project to charge GCP costs."}

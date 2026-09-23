@@ -45,6 +45,7 @@
   "sc_multiome_analysis.min_linkage_sig": "Float (optional, default = 0.0)",
   "sc_multiome_analysis.corr_threshold": "Float (optional, default = 0.1)",
   "sc_multiome_analysis.pval_threshold": "Float (optional, default = 0.05)",
+  "sc_multiome_analysis.fdr_threshold": "Float (optional, default = 0.05)",
   "sc_multiome_analysis.run_cross_team_cohort_analysis": "Boolean (optional, default = false)",
   "sc_multiome_analysis.cohort_raw_data_bucket": "String",
   "sc_multiome_analysis.cohort_staging_data_buckets": "Array[String]",

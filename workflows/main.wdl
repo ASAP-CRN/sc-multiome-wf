@@ -79,6 +79,7 @@ workflow sc_multiome_analysis {
 		Float min_linkage_sig = 0.0
 		Float corr_threshold = 0.1
 		Float pval_threshold = 0.05
+		Float fdr_threshold = 0.05
 
 		# Cohort analysis
 		Boolean run_cross_team_cohort_analysis = false
@@ -258,6 +259,7 @@ workflow sc_multiome_analysis {
 					min_linkage_sig = min_linkage_sig,
 					corr_threshold = corr_threshold,
 					pval_threshold = pval_threshold,
+					fdr_threshold = fdr_threshold,
 					workflow_name = workflow_name,
 					workflow_version = workflow_version,
 					workflow_release = workflow_release,
@@ -371,6 +373,7 @@ workflow sc_multiome_analysis {
 				min_linkage_sig = min_linkage_sig,
 				corr_threshold = corr_threshold,
 				pval_threshold = pval_threshold,
+				fdr_threshold = fdr_threshold,
 				workflow_name = workflow_name,
 				workflow_version = workflow_version,
 				workflow_release = workflow_release,
@@ -720,6 +723,7 @@ workflow sc_multiome_analysis {
 		min_linkage_sig: {help: "Minimum feature linkage significance to retain. [0.0]"}
 		corr_threshold: {help: "Minimum absolute Pearson correlation between peak accessibility and gene expression to retain a link. [0.1]"}
 		pval_threshold: {help: "Maximum p-value to retain a link. [0.05]"}
+		fdr_threshold: {help: "Benjamini-Hochberg FDR applied across all peak-gene tests within a cell type. [0.05]"}
 		run_cross_team_cohort_analysis: {help: "Whether to run downstream harmonization steps on all samples across projects. If set to false, only preprocessing steps (cellranger and generating the initial adata object(s)) will run for samples. [false]"}
 		cohort_raw_data_bucket: {help: "Bucket to upload cross-team cohort intermediate files to."}
 		cohort_staging_data_buckets: {help: "Set of buckets to stage cross-team cohort analysis outputs in."}

@@ -7,6 +7,8 @@ import mudata as md
 import hdf5plugin
 
 
+PEAK_GENE_TYPES = ("peak-gene", "gene-peak")
+
 BEDPE_COLUMNS = [
     "chrom1", "start1", "end1",
     "chrom2", "start2", "end2",
@@ -29,6 +31,8 @@ def parse_one_bedpe(bedpe_path: str, sample_id: str, keep_peak_gene_only: bool):
     pair, 'score' is the linkage correlation, 'significance' the significance,
     'distance' the bp between features, 'linkage_type' one of peak-gene /
     peak-peak / gene-gene.
+
+    https://www.10xgenomics.com/support/software/cell-ranger-arc/latest/analysis/outputs/multiome-atac-gene-expression-analysis#feature-linkage-bedpe
     """
     links = pd.read_csv(bedpe_path, sep="\t", header=None, names=BEDPE_COLUMNS)
 
@@ -37,8 +41,20 @@ def parse_one_bedpe(bedpe_path: str, sample_id: str, keep_peak_gene_only: bool):
     links["feature2"] = names[1]
     links["sample_id"] = sample_id
 
-    if keep_peak_gene_only:
-        links = links[links["linkage_type"] == "peak-gene"]
+    if keep_peak_and_gene_only:
+        # ARC reports both orientations -- 'peak-gene' and 'gene-peak' -- depending on
+        # which locus lands in feature1. Matching only one drops about half the links.
+        links = links[links["linkage_type"].isin(PEAK_GENE_TYPES)]
+
+    # Orientation-normalised columns so downstream never has to care which side is
+    # which; left NA for peak-peak rows, where the distinction does not apply.
+    gene_first = links["linkage_type"] == "gene-peak"
+    is_peak_gene = links["linkage_type"].isin(PEAK_GENE_TYPES)
+    links["peak"] = links["feature1"].where(~gene_first, links["feature2"]).where(is_peak_gene)
+    links["gene"] = links["feature2"].where(~gene_first, links["feature1"]).where(is_peak_gene)
+
+    counts = links["linkage_type"].value_counts().to_dict()
+    print(f"  {sample_id}: {counts}")
 
     return links.reset_index(drop=True)
 
@@ -90,7 +106,7 @@ def resolve_sample_ids(mdata: md.MuData, file_ids: set, sample_key: str):
 
 def stack_linkages(
     mdata: md.MuData, bedpe_paths, sample_key: str, corr_threshold: float,
-    significance_threshold: float, keep_peak_gene_only: bool
+    significance_threshold: float, keep_peak_and_gene_only: bool
 ):
     """Stack per-sample BEDPEs into one long, sample-stamped table.
 
@@ -141,7 +157,7 @@ def main(args):
 
     links = stack_linkages(
         mdata, args.bedpe_inputs, args.sample_key, args.corr_threshold,
-        args.significance_threshold, args.peak_gene_only
+        args.significance_threshold, args.peak_and_gene_only
     )
 
     links.to_csv(args.links_output, index=False)
@@ -172,7 +188,7 @@ if __name__ == "__main__":
         type=str,
         nargs="+",
         required=True,
-        help="Per-sample feature_linkage.bedpe files (one per sample)",
+        help="Per-sample Cell Ranger ARC feature_linkage.bedpe files (one per sample)",
     )
     parser.add_argument(
         "-k",
@@ -183,9 +199,9 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "-g",
-        "--peak-gene-only",
+        "--peak-and-gene-only",
         action="store_true",
-        help="Keep only peak-gene linkages (drop peak-peak and gene-gene)",
+        help="Keep only peak-gene and gene-peak linkages (drop peak-peak)",
     )
     parser.add_argument(
         "-r",

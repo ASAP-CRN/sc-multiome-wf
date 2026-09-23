@@ -11,6 +11,26 @@ from scipy.stats import pearsonr
 import hdf5plugin
 
 
+def benjamini_hochberg(pvals):
+    """
+    Benjamini-Hochberg q-values for a 1-D array of p-values.
+
+    Each cell type runs 10^5-10^6 correlations, so a nominal p cut admits a number
+    of links close to the chance expectation. Implemented directly to avoid adding
+    a statsmodels dependency.
+    """
+    p = np.asarray(pvals, dtype=float)
+    n = p.size
+    if n == 0:
+        return p
+    order = np.argsort(p)
+    ranked = p[order] * n / np.arange(1, n + 1)
+    ranked = np.minimum.accumulate(ranked[::-1])[::-1]
+    q = np.empty(n, dtype=float)
+    q[order] = np.clip(ranked, 0.0, 1.0)
+    return q
+
+
 def parse_peak_coords(var: pd.DataFrame):
     if {"chrom", "start", "end"}.issubset(var.columns):
         coords = var[["chrom", "start", "end"]].copy()
@@ -25,19 +45,65 @@ def parse_peak_coords(var: pd.DataFrame):
 
 
 def load_gene_tss(tss_bed: str):
-    return pd.read_csv(tss_bed, sep="\t", header=None, names=["chrom", "tss", "gene_name"])
+    """
+    Read the Cell Ranger ARC TSS BED: chrom, start, end, gene_id, score, strand.
+
+    Passing fewer `names` than the file has columns makes pandas fold the leading
+    columns into the index instead of failing -- which silently yields strand
+    values as gene names -- so the column count is checked rather than assumed.
+    A bare 3-column chrom/tss/gene table is also accepted.
+    """
+    bed = pd.read_csv(tss_bed, sep="\t", header=None)
+    if bed.shape[1] >= 4:
+        tss = pd.DataFrame({
+            "chrom": bed[0].astype(str),
+            "tss": bed[1].astype(int),
+            "gene_name": bed[3].astype(str),
+        })
+    elif bed.shape[1] == 3:
+        tss = pd.DataFrame({
+            "chrom": bed[0].astype(str),
+            "tss": bed[1].astype(int),
+            "gene_name": bed[2].astype(str),
+        })
+    else:
+        raise ValueError(
+            f"{tss_bed} has {bed.shape[1]} columns; expected a BED with at least "
+            "chrom, start, end (gene id in column 4) or chrom, tss, gene."
+        )
+    print(f"Loaded {len(tss)} TSS records for {tss['gene_name'].nunique()} genes "
+          f"on {tss['chrom'].nunique()} contigs; e.g. {tss['gene_name'].iloc[0]}")
+    return tss
 
 
 def correlate_group(
-    rna, atac, peak_coords, tss, window, min_cells, corr_threshold, pval_threshold, group_label
+    rna, atac, peak_coords, tss, window, min_cells, corr_threshold, pval_threshold,
+    fdr_threshold, group_label
 ):
     """Correlate expression vs accessibility of nearby peaks within a single cell group."""
-    rna_genes = pd.Index(rna.var_names)
+    # The ARC TSS bed keys on Ensembl ids, while var_names are symbols, so match on
+    # var['gene_id'] when it exists and fall back to var_names otherwise.
+    if "gene_id" in rna.var:
+        rna_genes = pd.Index(rna.var["gene_id"].astype(str))
+    else:
+        rna_genes = pd.Index(rna.var_names)
     X_rna = rna.X.tocsc() if sp.issparse(rna.X) else np.asarray(rna.X)
     X_atac = atac.X.tocsc() if sp.issparse(atac.X) else np.asarray(atac.X)
 
     records = []
-    tss = tss[tss["gene_name"].isin(rna_genes)]
+    n_tss_in = len(tss)
+    matched = tss[tss["gene_name"].isin(rna_genes)]
+    if matched.empty:
+        raise ValueError(
+            "No TSS gene id matches the RNA object. "
+            f"TSS ids e.g. {tss['gene_name'].head(3).tolist()}; "
+            f"RNA ids e.g. {rna_genes[:3].tolist()} "
+            f"(from var['gene_id'])" if "gene_id" in rna.var else
+            f"(from var_names; var has no 'gene_id', columns: {list(rna.var.columns)})"
+        )
+    tss = matched
+    n_near = n_tested = n_sparse = n_nan = 0
+    n_const_gene = n_const_peak = 0
 
     for _, g in tss.iterrows():
         gene = g["gene_name"]
@@ -47,19 +113,32 @@ def correlate_group(
         ]
         if near.empty:
             continue
+        n_near += len(near)
 
         gi = rna_genes.get_loc(gene)
+        gi = gi if isinstance(gi, int) else int(np.flatnonzero(gi)[0])
         expr = X_rna[:, gi]
         expr = np.asarray(expr.todense()).ravel() if sp.issparse(expr) else np.asarray(expr).ravel()
+        # pearsonr is undefined for a constant vector; a gene flat across the group
+        # can never link, so skip it before iterating its nearby peaks.
+        if np.ptp(expr) == 0:
+            n_const_gene += 1
+            continue
 
         for peak_name in near.index:
             pi = atac.var_names.get_loc(peak_name)
             acc = X_atac[:, pi]
             acc = np.asarray(acc.todense()).ravel() if sp.issparse(acc) else np.asarray(acc).ravel()
             if (acc > 0).sum() < min_cells:
+                n_sparse += 1
                 continue
+            if np.ptp(acc) == 0:
+                n_const_peak += 1
+                continue
+            n_tested += 1
             r, p = pearsonr(expr, acc)
             if np.isnan(r):
+                n_nan += 1
                 continue
             distance = int(near.loc[peak_name, "mid"] - g["tss"])
             records.append((group_label, gene, peak_name, r, p, distance))
@@ -67,16 +146,28 @@ def correlate_group(
     links = pd.DataFrame(
         records, columns=["cell_type", "gene", "peak", "pearson_r", "pval", "distance_to_tss"]
     )
+    n_raw = len(links)
     if not links.empty:
+        # BH across every test in this cell type, before any filtering
+        links["qval"] = benjamini_hochberg(links["pval"].to_numpy())
         links = links[
-            (links["pearson_r"].abs() >= corr_threshold) & (links["pval"] <= pval_threshold)
+            (links["pearson_r"].abs() >= corr_threshold)
+            & (links["pval"] <= pval_threshold)
+            & (links["qval"] <= fdr_threshold)
         ]
-    print(f"[{group_label}] retained {len(links)} peak-gene links")
+    else:
+        links["qval"] = pd.Series(dtype=float)
+    print(f"[{group_label}] genes matched {len(tss)}/{n_tss_in} TSS | "
+          f"peaks in window {n_near} | flat genes {n_const_gene} | "
+          f"dropped <{min_cells} cells {n_sparse} | flat peaks {n_const_peak} | "
+          f"correlated {n_tested} | nan r {n_nan} | before thresholds {n_raw} | "
+          f"expected by chance {n_raw * pval_threshold:.0f} | retained {len(links)}")
     return links
 
 
 def link_by_celltype(
-    mdata, tss, celltype_key, window, min_cells, corr_threshold, pval_threshold, min_group_cells
+    mdata, tss, celltype_key, window, min_cells, corr_threshold, pval_threshold,
+    fdr_threshold, min_group_cells
 ):
     rna_all = mdata.mod["rna"][mdata.obs_names]
     # Prefer the called cell-type peak matrix (mod['peaks']) over raw tiles
@@ -97,7 +188,8 @@ def link_by_celltype(
         atac_ct = atac_all[mask]
         all_links.append(
             correlate_group(
-                rna_ct, atac_ct, peak_coords, tss, window, min_cells, corr_threshold, pval_threshold, ct
+                rna_ct, atac_ct, peak_coords, tss, window, min_cells, corr_threshold, pval_threshold,
+                fdr_threshold, ct
             )
         )
 
@@ -106,7 +198,7 @@ def link_by_celltype(
         result = result.sort_values(["cell_type", "pearson_r"], ascending=[True, False]).reset_index(drop=True)
     else:
         result = pd.DataFrame(
-            columns=["cell_type", "gene", "peak", "pearson_r", "pval", "distance_to_tss"]
+            columns=["cell_type", "gene", "peak", "pearson_r", "pval", "qval", "distance_to_tss"]
         )
     print(f"Total cell-type-resolved links: {len(result)}")
     return result
@@ -125,7 +217,8 @@ def main(args):
     
     links = link_by_celltype(
         mdata, tss, args.celltype_key, args.window, args.min_cells,
-        args.corr_threshold, args.pval_threshold, args.min_group_cells
+        args.corr_threshold, args.pval_threshold, args.fdr_threshold,
+        args.min_group_cells
     )
 
     links.to_csv(args.links_output, index=False)
@@ -205,6 +298,13 @@ if __name__ == "__main__":
         type=float,
         required=True,
         help="Maximum p-value to retain a link [0.05]",
+    )
+    parser.add_argument(
+        "-q",
+        "--fdr-threshold",
+        type=float,
+        default=0.05,
+        help="Benjamini-Hochberg FDR across all tests within a cell type; the nominal p cut alone admits roughly chance-level links at this test count [0.05]",
     )
     parser.add_argument(
         "-o",
