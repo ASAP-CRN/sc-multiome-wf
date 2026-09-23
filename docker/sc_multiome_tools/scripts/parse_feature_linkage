@@ -25,7 +25,7 @@ def sample_id_from_filename(path: str):
     return parts[-1]
 
 
-def parse_one_bedpe(bedpe_path: str, sample_id: str, keep_peak_gene_only: bool):
+def parse_one_bedpe(bedpe_path: str, sample_id: str, keep_peak_and_gene_only: bool):
     """Read one sample's Cell Ranger ARC feature_linkage.bedpe and stamp it with
     its sample id. Each row links two loci; 'name' holds a <feature1><feature2>
     pair, 'score' is the linkage correlation, 'significance' the significance,
@@ -131,7 +131,7 @@ def stack_linkages(
                 f"Known ids: {sorted(obs_samples)}."
             )
         seen.add(sid)
-        df = parse_one_bedpe(path, sid, keep_peak_gene_only)
+        df = parse_one_bedpe(path, sid, keep_peak_and_gene_only)
         print(f"  {sid}: {len(df)} linkages")
         frames.append(df)
 
