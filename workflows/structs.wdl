@@ -6,12 +6,18 @@ struct MuxSample {
 	String sample_id
 	String? batch
 	String? sex
+	String? brain_region_level_1
+	String? brain_region_level_2
+	String? brain_region_level_3
 }
 
 struct Sample {
 	String sample_id # treated as pool_id when multiplexed
 	String? batch
 	String? sex
+	String? brain_region_level_1
+	String? brain_region_level_2
+	String? brain_region_level_3
 
 	Array[File]+ fastq_R1s
 	Array[File]+ fastq_R2s

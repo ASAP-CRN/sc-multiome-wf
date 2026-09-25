@@ -12,6 +12,9 @@ def add_metadata(
     sample_id: str,
     batch: str,
     sex: str,
+    brain_region_level_1: str,
+    brain_region_level_2: str,
+    brain_region_level_3: str,
     pool_id: Optional[str] = None,
     source_subject_id: Optional[str] = None,
     subject_id: Optional[str] = None,
@@ -20,6 +23,9 @@ def add_metadata(
     adata.obs["sample"] = sample_id
     adata.obs["batch"] = batch
     adata.obs["sex"] = sex
+    adata.obs["brain_region_level_1"] = brain_region_level_1
+    adata.obs["brain_region_level_2"] = brain_region_level_2
+    adata.obs["brain_region_level_3"] = brain_region_level_3
     adata.obs["team"] = team_id
     adata.obs["dataset"] = dataset_id
     adata.obs["batch_id"] = f"{team_id}_{dataset_id}_{batch}"
@@ -46,6 +52,9 @@ def main(args):
         sample_id=args.sample_id,
         batch=args.batch,
         sex=args.sex,
+        brain_region_level_1=args.brain_region_level_1,
+        brain_region_level_2=args.brain_region_level_2,
+        brain_region_level_3=args.brain_region_level_3,
         pool_id=args.pool_id,
         source_subject_id=args.source_subject_id,
         subject_id=args.subject_id,
@@ -106,6 +115,24 @@ if __name__ == "__main__":
         type=str,
         required=True,
         help="The sample's sex"
+    )
+    parser.add_argument(
+        "--brain-region-level-1",
+        type=str,
+        required=False,
+        help="Abbreviation of most granular anatomical region (Level 1)"
+    )
+    parser.add_argument(
+        "--brain-region-level-2",
+        type=str,
+        required=False,
+        help="Abbreviation of intermediate level anatomical region (Level 2)"
+    )
+    parser.add_argument(
+        "--brain-region-level-3",
+        type=str,
+        required=False,
+        help="Abbreviation of coarse level anatomical region (Level 3)"
     )
     parser.add_argument(
         "-p",

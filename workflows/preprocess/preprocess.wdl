@@ -68,6 +68,9 @@ workflow preprocess {
 			String mux_sample_id = mux_sample_object.sample_id
 			String mux_batch = select_first([mux_sample_object.batch])
 			String mux_sex = select_first([mux_sample_object.sex])
+			String mux_brain_region_level_1 = select_first([mux_sample_object.brain_region_level_1, "NA"])
+			String mux_brain_region_level_2 = select_first([mux_sample_object.brain_region_level_2, "NA"])
+			String mux_brain_region_level_3 = select_first([mux_sample_object.brain_region_level_3, "NA"])
 
 			String rna_demux_counts_output = if is_multiplexed then "~{rna_demux_counts_raw_data_path}/~{mux_dataset_sample_pool_id}.demux_counts.h5ad" else "NA"
 			String rna_demux_initial_adata_object_output = if is_multiplexed then "~{rna_demux_adata_raw_data_path}/~{mux_dataset_sample_pool_id}.cleaned_unfiltered.h5ad" else "NA"
@@ -268,6 +271,9 @@ workflow preprocess {
 							sample_id = mux_sample_id[index][mux_sample_index],
 							batch = mux_batch[index][mux_sample_index],
 							sex = mux_sex[index][mux_sample_index],
+							brain_region_level_1 = mux_brain_region_level_1[index][mux_sample_index],
+							brain_region_level_2 = mux_brain_region_level_2[index][mux_sample_index],
+							brain_region_level_3 = mux_brain_region_level_3[index][mux_sample_index],
 							pool_id = sample.sample_id,
 							source_subject_id = source_subject_id[index][mux_sample_index],
 							subject_id = asap_subject_id[index][mux_sample_index],
@@ -290,6 +296,9 @@ workflow preprocess {
 							sample_id = mux_sample_id[index][mux_sample_index],
 							batch = mux_batch[index][mux_sample_index],
 							sex = mux_sex[index][mux_sample_index],
+							brain_region_level_1 = mux_brain_region_level_1[index][mux_sample_index],
+							brain_region_level_2 = mux_brain_region_level_2[index][mux_sample_index],
+							brain_region_level_3 = mux_brain_region_level_3[index][mux_sample_index],
 							pool_id = sample.sample_id,
 							source_subject_id = source_subject_id[index][mux_sample_index],
 							subject_id = asap_subject_id[index][mux_sample_index],
@@ -334,6 +343,9 @@ workflow preprocess {
 						sample_id = sample.sample_id,
 						batch = select_first([sample.batch]),
 						sex = select_first([sample.sex]),
+						brain_region_level_1 = select_first([sample.brain_region_level_1, "NA"]),
+						brain_region_level_2 = select_first([sample.brain_region_level_2, "NA"]),
+						brain_region_level_3 = select_first([sample.brain_region_level_3, "NA"]),
 						cellbender_counts = removed_background_counts_output,
 						raw_data_path = rna_adata_raw_data_path,
 						workflow_info = workflow_info,
@@ -353,6 +365,9 @@ workflow preprocess {
 						sample_id = sample.sample_id,
 						batch = select_first([sample.batch]),
 						sex = select_first([sample.sex]),
+						brain_region_level_1 = select_first([sample.brain_region_level_1, "NA"]),
+						brain_region_level_2 = select_first([sample.brain_region_level_2, "NA"]),
+						brain_region_level_3 = select_first([sample.brain_region_level_3, "NA"]),
 						fragments_tsv_gz = atac_fragments_tsv_gz_output,
 						raw_data_path = atac_adata_raw_data_path,
 						workflow_info = workflow_info,
@@ -846,6 +861,9 @@ task counts_to_adata {
 		String sample_id
 		String batch
 		String sex
+		String brain_region_level_1
+		String brain_region_level_2
+		String brain_region_level_3
 		String? pool_id
 		String? source_subject_id
 		String? subject_id
@@ -874,6 +892,9 @@ task counts_to_adata {
 			--sample-id ~{sample_id} \
 			--batch ~{batch} \
 			--sex ~{sex} \
+			--brain-region-level-1 "~{brain_region_level_1}" \
+			--brain-region-level-2 "~{brain_region_level_2}" \
+			--brain-region-level-3 "~{brain_region_level_3}" \
 			~{"--pool-id " + pool_id} \
 			~{"--source-subject-id " + source_subject_id} \
 			~{"--subject-id " + subject_id} \
@@ -911,6 +932,9 @@ task counts_to_adata {
 		sample_id: {help: "Generated ASAP sample ID; stored in the AnnData objects and used to name output files."}
 		batch: {help: "The sample's batch; stored in the AnnData objects."}
 		sex: {help: "The sample's sex; stored in the AnnData objects."}
+		brain_region_level_1: {help: "Abbreviation of most granular anatomical region (Level 1)."}
+		brain_region_level_2: {help: "Abbreviation of intermediate level anatomical region (Level 2)."}
+		brain_region_level_3: {help: "Abbreviation of coarse level anatomical region (Level 3)."}
 		pool_id: {help: "Generated ASAP pool ID; stored in the AnnData objects."}
 		source_subject_id: {help: "Source subject ID; stored in the AnnData objects."}
 		subject_id: {help: "Generated ASAP subject ID; stored in the AnnData objects."}
@@ -930,6 +954,9 @@ task fragments_to_adata {
 		String sample_id
 		String batch
 		String sex
+		String brain_region_level_1
+		String brain_region_level_2
+		String brain_region_level_3
 		String? pool_id
 		String? source_subject_id
 		String? subject_id
@@ -958,6 +985,9 @@ task fragments_to_adata {
 			--sample-id ~{sample_id} \
 			--batch ~{batch} \
 			--sex ~{sex} \
+			--brain-region-level-1 "~{brain_region_level_1}" \
+			--brain-region-level-2 "~{brain_region_level_2}" \
+			--brain-region-level-3 "~{brain_region_level_3}" \
 			~{"--pool-id " + pool_id} \
 			~{"--source-subject-id " + source_subject_id} \
 			~{"--subject-id " + subject_id} \
@@ -995,6 +1025,9 @@ task fragments_to_adata {
 		sample_id: {help: "Generated ASAP sample ID; stored in the AnnData objects and used to name output files."}
 		batch: {help: "The sample's batch; stored in the AnnData objects."}
 		sex: {help: "The sample's sex; stored in the AnnData objects."}
+		brain_region_level_1: {help: "Abbreviation of most granular anatomical region (Level 1)."}
+		brain_region_level_2: {help: "Abbreviation of intermediate level anatomical region (Level 2)."}
+		brain_region_level_3: {help: "Abbreviation of coarse level anatomical region (Level 3)."}
 		pool_id: {help: "Generated ASAP pool ID; stored in the AnnData objects."}
 		source_subject_id: {help: "Source subject ID; stored in the AnnData objects."}
 		subject_id: {help: "Generated ASAP subject ID; stored in the AnnData objects."}
