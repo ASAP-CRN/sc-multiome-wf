@@ -1,0 +1,798 @@
+{
+  "workflows": {
+    "wf-common/wdl/structs.wdl": {
+      "key": "wf-common/wdl/structs.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {}
+    },
+    "wf-common/wdl/tasks/upload_final_outputs.wdl": {
+      "key": "wf-common/wdl/tasks/upload_final_outputs.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {
+        "upload_final_outputs": {
+          "key": "upload_final_outputs",
+          "digest": "",
+          "tests": []
+        }
+      }
+    },
+    "wf-common/wdl/tasks/write_cohort_sample_list.wdl": {
+      "key": "wf-common/wdl/tasks/write_cohort_sample_list.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {
+        "write_cohort_sample_list": {
+          "key": "write_cohort_sample_list",
+          "digest": "",
+          "tests": []
+        }
+      }
+    },
+    "wf-common/wdl/tasks/multiqc.wdl": {
+      "key": "wf-common/wdl/tasks/multiqc.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {
+        "multiqc": {
+          "key": "multiqc",
+          "digest": "",
+          "tests": []
+        }
+      }
+    },
+    "wf-common/wdl/tasks/fastqc.wdl": {
+      "key": "wf-common/wdl/tasks/fastqc.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {
+        "fastqc": {
+          "key": "fastqc",
+          "digest": "",
+          "tests": []
+        }
+      }
+    },
+    "wf-common/wdl/tasks/get_workflow_metadata.wdl": {
+      "key": "wf-common/wdl/tasks/get_workflow_metadata.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {
+        "get_workflow_metadata": {
+          "key": "get_workflow_metadata",
+          "digest": "",
+          "tests": []
+        }
+      }
+    },
+    "workflows/structs.wdl": {
+      "key": "workflows/structs.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {}
+    },
+    "workflows/main.wdl": {
+      "key": "workflows/main.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {}
+    },
+    "workflows/cohort_analysis/cohort_analysis.wdl": {
+      "key": "workflows/cohort_analysis/cohort_analysis.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {
+        "joint_qc": {
+          "key": "joint_qc",
+          "digest": "",
+          "tests": []
+        },
+        "annotate_and_transfer": {
+          "key": "annotate_and_transfer",
+          "digest": "",
+          "tests": []
+        },
+        "parse_feature_linkage": {
+          "key": "parse_feature_linkage",
+          "digest": "",
+          "tests": []
+        }
+      }
+    },
+    "workflows/cohort_analysis/multivi_integration/multivi_integration.wdl": {
+      "key": "workflows/cohort_analysis/multivi_integration/multivi_integration.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {
+        "integrate_multivi": {
+          "key": "integrate_multivi",
+          "digest": "",
+          "tests": []
+        },
+        "cluster_multivi": {
+          "key": "cluster_multivi",
+          "digest": "",
+          "tests": []
+        }
+      }
+    },
+    "workflows/preprocess/preprocess.wdl": {
+      "key": "workflows/preprocess/preprocess.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {
+        "check_output_files_exist": {
+          "key": "check_output_files_exist",
+          "digest": "",
+          "tests": []
+        },
+        "cellranger_arc_count": {
+          "key": "cellranger_arc_count",
+          "digest": "",
+          "tests": []
+        },
+        "rna_remove_technical_artifacts": {
+          "key": "rna_remove_technical_artifacts",
+          "digest": "",
+          "tests": []
+        },
+        "rna_demux_counts": {
+          "key": "rna_demux_counts",
+          "digest": "",
+          "tests": []
+        },
+        "counts_to_adata": {
+          "key": "counts_to_adata",
+          "digest": "",
+          "tests": []
+        },
+        "fragments_to_adata": {
+          "key": "fragments_to_adata",
+          "digest": "",
+          "tests": []
+        }
+      }
+    },
+    "sc-rnaseq-wf/wf-common/wdl/structs.wdl": {
+      "key": "sc-rnaseq-wf/wf-common/wdl/structs.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {}
+    },
+    "sc-rnaseq-wf/wf-common/wdl/tasks/upload_final_outputs.wdl": {
+      "key": "sc-rnaseq-wf/wf-common/wdl/tasks/upload_final_outputs.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {
+        "upload_final_outputs": {
+          "key": "upload_final_outputs",
+          "digest": "",
+          "tests": []
+        }
+      }
+    },
+    "sc-rnaseq-wf/wf-common/wdl/tasks/write_cohort_sample_list.wdl": {
+      "key": "sc-rnaseq-wf/wf-common/wdl/tasks/write_cohort_sample_list.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {
+        "write_cohort_sample_list": {
+          "key": "write_cohort_sample_list",
+          "digest": "",
+          "tests": []
+        }
+      }
+    },
+    "sc-rnaseq-wf/wf-common/wdl/tasks/multiqc.wdl": {
+      "key": "sc-rnaseq-wf/wf-common/wdl/tasks/multiqc.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {
+        "multiqc": {
+          "key": "multiqc",
+          "digest": "",
+          "tests": []
+        }
+      }
+    },
+    "sc-rnaseq-wf/wf-common/wdl/tasks/fastqc.wdl": {
+      "key": "sc-rnaseq-wf/wf-common/wdl/tasks/fastqc.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {
+        "fastqc": {
+          "key": "fastqc",
+          "digest": "",
+          "tests": []
+        }
+      }
+    },
+    "sc-rnaseq-wf/wf-common/wdl/tasks/get_workflow_metadata.wdl": {
+      "key": "sc-rnaseq-wf/wf-common/wdl/tasks/get_workflow_metadata.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {
+        "get_workflow_metadata": {
+          "key": "get_workflow_metadata",
+          "digest": "",
+          "tests": []
+        }
+      }
+    },
+    "sc-rnaseq-wf/workflows/structs.wdl": {
+      "key": "sc-rnaseq-wf/workflows/structs.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {}
+    },
+    "sc-rnaseq-wf/workflows/main.wdl": {
+      "key": "sc-rnaseq-wf/workflows/main.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {
+        "get_workflow_name": {
+          "key": "get_workflow_name",
+          "digest": "",
+          "tests": []
+        }
+      }
+    },
+    "sc-rnaseq-wf/workflows/cohort_analysis/cohort_analysis.wdl": {
+      "key": "sc-rnaseq-wf/workflows/cohort_analysis/cohort_analysis.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {
+        "merge_and_plot_qc_metrics": {
+          "key": "merge_and_plot_qc_metrics",
+          "digest": "",
+          "tests": []
+        },
+        "filter": {
+          "key": "filter",
+          "digest": "",
+          "tests": []
+        },
+        "map_cell_types": {
+          "key": "map_cell_types",
+          "digest": "",
+          "tests": []
+        },
+        "normalize": {
+          "key": "normalize",
+          "digest": "",
+          "tests": []
+        },
+        "add_mapped_cell_types": {
+          "key": "add_mapped_cell_types",
+          "digest": "",
+          "tests": []
+        },
+        "integrate_harmony": {
+          "key": "integrate_harmony",
+          "digest": "",
+          "tests": []
+        },
+        "artifact_metrics": {
+          "key": "artifact_metrics",
+          "digest": "",
+          "tests": []
+        },
+        "plot_groups_and_features": {
+          "key": "plot_groups_and_features",
+          "digest": "",
+          "tests": []
+        }
+      }
+    },
+    "sc-rnaseq-wf/workflows/cohort_analysis/cluster_data/cluster_data.wdl": {
+      "key": "sc-rnaseq-wf/workflows/cohort_analysis/cluster_data/cluster_data.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {
+        "integrate_sample_data": {
+          "key": "integrate_sample_data",
+          "digest": "",
+          "tests": []
+        },
+        "assign_remaining_cells": {
+          "key": "assign_remaining_cells",
+          "digest": "",
+          "tests": []
+        },
+        "cluster_cells": {
+          "key": "cluster_cells",
+          "digest": "",
+          "tests": []
+        }
+      }
+    },
+    "sc-rnaseq-wf/workflows/preprocess/preprocess.wdl": {
+      "key": "sc-rnaseq-wf/workflows/preprocess/preprocess.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {
+        "check_output_files_exist": {
+          "key": "check_output_files_exist",
+          "digest": "",
+          "tests": []
+        },
+        "cellranger_count": {
+          "key": "cellranger_count",
+          "digest": "",
+          "tests": []
+        },
+        "remove_technical_artifacts": {
+          "key": "remove_technical_artifacts",
+          "digest": "",
+          "tests": []
+        },
+        "counts_to_adata": {
+          "key": "counts_to_adata",
+          "digest": "",
+          "tests": []
+        }
+      }
+    },
+    "sc-rnaseq-wf/sc-rnaseq-wdl-ci-custom-test-dir/check_parquet.wdl": {
+      "key": "sc-rnaseq-wf/sc-rnaseq-wdl-ci-custom-test-dir/check_parquet.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {
+        "check_parquet": {
+          "key": "check_parquet",
+          "digest": "",
+          "tests": []
+        }
+      }
+    },
+    "sc-rnaseq-wf/sc-rnaseq-wdl-ci-custom-test-dir/image_validator.wdl": {
+      "key": "sc-rnaseq-wf/sc-rnaseq-wdl-ci-custom-test-dir/image_validator.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {
+        "image_validator": {
+          "key": "image_validator",
+          "digest": "",
+          "tests": []
+        }
+      }
+    },
+    "sc-atacseq-wf/sc-atacseq-wdl-ci-custom-test-dir/check_parquet.wdl": {
+      "key": "sc-atacseq-wf/sc-atacseq-wdl-ci-custom-test-dir/check_parquet.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {
+        "check_parquet": {
+          "key": "check_parquet",
+          "digest": "",
+          "tests": []
+        }
+      }
+    },
+    "sc-atacseq-wf/sc-atacseq-wdl-ci-custom-test-dir/check_tbi_index.wdl": {
+      "key": "sc-atacseq-wf/sc-atacseq-wdl-ci-custom-test-dir/check_tbi_index.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {
+        "check_tbi_index": {
+          "key": "check_tbi_index",
+          "digest": "",
+          "tests": []
+        }
+      }
+    },
+    "sc-atacseq-wf/sc-atacseq-wdl-ci-custom-test-dir/image_validator.wdl": {
+      "key": "sc-atacseq-wf/sc-atacseq-wdl-ci-custom-test-dir/image_validator.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {
+        "image_validator": {
+          "key": "image_validator",
+          "digest": "",
+          "tests": []
+        }
+      }
+    },
+    "sc-atacseq-wf/wf-common/wdl/structs.wdl": {
+      "key": "sc-atacseq-wf/wf-common/wdl/structs.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {}
+    },
+    "sc-atacseq-wf/wf-common/wdl/tasks/upload_final_outputs.wdl": {
+      "key": "sc-atacseq-wf/wf-common/wdl/tasks/upload_final_outputs.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {
+        "upload_final_outputs": {
+          "key": "upload_final_outputs",
+          "digest": "",
+          "tests": []
+        }
+      }
+    },
+    "sc-atacseq-wf/wf-common/wdl/tasks/write_cohort_sample_list.wdl": {
+      "key": "sc-atacseq-wf/wf-common/wdl/tasks/write_cohort_sample_list.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {
+        "write_cohort_sample_list": {
+          "key": "write_cohort_sample_list",
+          "digest": "",
+          "tests": []
+        }
+      }
+    },
+    "sc-atacseq-wf/wf-common/wdl/tasks/multiqc.wdl": {
+      "key": "sc-atacseq-wf/wf-common/wdl/tasks/multiqc.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {
+        "multiqc": {
+          "key": "multiqc",
+          "digest": "",
+          "tests": []
+        }
+      }
+    },
+    "sc-atacseq-wf/wf-common/wdl/tasks/fastqc.wdl": {
+      "key": "sc-atacseq-wf/wf-common/wdl/tasks/fastqc.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {
+        "fastqc": {
+          "key": "fastqc",
+          "digest": "",
+          "tests": []
+        }
+      }
+    },
+    "sc-atacseq-wf/wf-common/wdl/tasks/get_workflow_metadata.wdl": {
+      "key": "sc-atacseq-wf/wf-common/wdl/tasks/get_workflow_metadata.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {
+        "get_workflow_metadata": {
+          "key": "get_workflow_metadata",
+          "digest": "",
+          "tests": []
+        }
+      }
+    },
+    "sc-atacseq-wf/workflows/structs.wdl": {
+      "key": "sc-atacseq-wf/workflows/structs.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {}
+    },
+    "sc-atacseq-wf/workflows/main.wdl": {
+      "key": "sc-atacseq-wf/workflows/main.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {}
+    },
+    "sc-atacseq-wf/workflows/cohort_analysis/cohort_analysis.wdl": {
+      "key": "sc-atacseq-wf/workflows/cohort_analysis/cohort_analysis.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {
+        "merge_and_qc": {
+          "key": "merge_and_qc",
+          "digest": "",
+          "tests": []
+        },
+        "reduce_dimensions": {
+          "key": "reduce_dimensions",
+          "digest": "",
+          "tests": []
+        },
+        "peak_calling": {
+          "key": "peak_calling",
+          "digest": "",
+          "tests": []
+        },
+        "benchmark_sc_integration": {
+          "key": "benchmark_sc_integration",
+          "digest": "",
+          "tests": []
+        },
+        "make_gene_matrix": {
+          "key": "make_gene_matrix",
+          "digest": "",
+          "tests": []
+        },
+        "process_gene_matrix": {
+          "key": "process_gene_matrix",
+          "digest": "",
+          "tests": []
+        },
+        "impute_gene_matrix": {
+          "key": "impute_gene_matrix",
+          "digest": "",
+          "tests": []
+        },
+        "motif_enrichment": {
+          "key": "motif_enrichment",
+          "digest": "",
+          "tests": []
+        },
+        "export_final_artifacts": {
+          "key": "export_final_artifacts",
+          "digest": "",
+          "tests": []
+        }
+      }
+    },
+    "sc-atacseq-wf/workflows/cohort_analysis/harmony_integration/harmony_integration.wdl": {
+      "key": "sc-atacseq-wf/workflows/cohort_analysis/harmony_integration/harmony_integration.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {
+        "integrate_harmony": {
+          "key": "integrate_harmony",
+          "digest": "",
+          "tests": []
+        },
+        "cluster_harmony": {
+          "key": "cluster_harmony",
+          "digest": "",
+          "tests": []
+        }
+      }
+    },
+    "sc-atacseq-wf/workflows/cohort_analysis/peakvi_integration/peakvi_integration.wdl": {
+      "key": "sc-atacseq-wf/workflows/cohort_analysis/peakvi_integration/peakvi_integration.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {
+        "integrate_peakvi": {
+          "key": "integrate_peakvi",
+          "digest": "",
+          "tests": []
+        },
+        "cluster_peakvi": {
+          "key": "cluster_peakvi",
+          "digest": "",
+          "tests": []
+        }
+      }
+    },
+    "sc-atacseq-wf/workflows/preprocess/preprocess.wdl": {
+      "key": "sc-atacseq-wf/workflows/preprocess/preprocess.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {
+        "check_output_files_exist": {
+          "key": "check_output_files_exist",
+          "digest": "",
+          "tests": []
+        },
+        "cellranger_atac_count": {
+          "key": "cellranger_atac_count",
+          "digest": "",
+          "tests": []
+        },
+        "split_demux_fragments": {
+          "key": "split_demux_fragments",
+          "digest": "",
+          "tests": []
+        },
+        "counts_to_adata": {
+          "key": "counts_to_adata",
+          "digest": "",
+          "tests": []
+        }
+      }
+    },
+    "sc-atacseq-wf/sc-rnaseq-wf/wf-common/wdl/structs.wdl": {
+      "key": "sc-atacseq-wf/sc-rnaseq-wf/wf-common/wdl/structs.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {}
+    },
+    "sc-atacseq-wf/sc-rnaseq-wf/wf-common/wdl/tasks/upload_final_outputs.wdl": {
+      "key": "sc-atacseq-wf/sc-rnaseq-wf/wf-common/wdl/tasks/upload_final_outputs.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {
+        "upload_final_outputs": {
+          "key": "upload_final_outputs",
+          "digest": "",
+          "tests": []
+        }
+      }
+    },
+    "sc-atacseq-wf/sc-rnaseq-wf/wf-common/wdl/tasks/write_cohort_sample_list.wdl": {
+      "key": "sc-atacseq-wf/sc-rnaseq-wf/wf-common/wdl/tasks/write_cohort_sample_list.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {
+        "write_cohort_sample_list": {
+          "key": "write_cohort_sample_list",
+          "digest": "",
+          "tests": []
+        }
+      }
+    },
+    "sc-atacseq-wf/sc-rnaseq-wf/wf-common/wdl/tasks/multiqc.wdl": {
+      "key": "sc-atacseq-wf/sc-rnaseq-wf/wf-common/wdl/tasks/multiqc.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {
+        "multiqc": {
+          "key": "multiqc",
+          "digest": "",
+          "tests": []
+        }
+      }
+    },
+    "sc-atacseq-wf/sc-rnaseq-wf/wf-common/wdl/tasks/fastqc.wdl": {
+      "key": "sc-atacseq-wf/sc-rnaseq-wf/wf-common/wdl/tasks/fastqc.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {
+        "fastqc": {
+          "key": "fastqc",
+          "digest": "",
+          "tests": []
+        }
+      }
+    },
+    "sc-atacseq-wf/sc-rnaseq-wf/wf-common/wdl/tasks/get_workflow_metadata.wdl": {
+      "key": "sc-atacseq-wf/sc-rnaseq-wf/wf-common/wdl/tasks/get_workflow_metadata.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {
+        "get_workflow_metadata": {
+          "key": "get_workflow_metadata",
+          "digest": "",
+          "tests": []
+        }
+      }
+    },
+    "sc-atacseq-wf/sc-rnaseq-wf/workflows/structs.wdl": {
+      "key": "sc-atacseq-wf/sc-rnaseq-wf/workflows/structs.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {}
+    },
+    "sc-atacseq-wf/sc-rnaseq-wf/workflows/main.wdl": {
+      "key": "sc-atacseq-wf/sc-rnaseq-wf/workflows/main.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {
+        "get_workflow_name": {
+          "key": "get_workflow_name",
+          "digest": "",
+          "tests": []
+        }
+      }
+    },
+    "sc-atacseq-wf/sc-rnaseq-wf/workflows/cohort_analysis/cohort_analysis.wdl": {
+      "key": "sc-atacseq-wf/sc-rnaseq-wf/workflows/cohort_analysis/cohort_analysis.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {
+        "merge_and_plot_qc_metrics": {
+          "key": "merge_and_plot_qc_metrics",
+          "digest": "",
+          "tests": []
+        },
+        "filter": {
+          "key": "filter",
+          "digest": "",
+          "tests": []
+        },
+        "map_cell_types": {
+          "key": "map_cell_types",
+          "digest": "",
+          "tests": []
+        },
+        "normalize": {
+          "key": "normalize",
+          "digest": "",
+          "tests": []
+        },
+        "add_mapped_cell_types": {
+          "key": "add_mapped_cell_types",
+          "digest": "",
+          "tests": []
+        },
+        "integrate_harmony": {
+          "key": "integrate_harmony",
+          "digest": "",
+          "tests": []
+        },
+        "artifact_metrics": {
+          "key": "artifact_metrics",
+          "digest": "",
+          "tests": []
+        },
+        "plot_groups_and_features": {
+          "key": "plot_groups_and_features",
+          "digest": "",
+          "tests": []
+        }
+      }
+    },
+    "sc-atacseq-wf/sc-rnaseq-wf/workflows/cohort_analysis/cluster_data/cluster_data.wdl": {
+      "key": "sc-atacseq-wf/sc-rnaseq-wf/workflows/cohort_analysis/cluster_data/cluster_data.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {
+        "integrate_sample_data": {
+          "key": "integrate_sample_data",
+          "digest": "",
+          "tests": []
+        },
+        "assign_remaining_cells": {
+          "key": "assign_remaining_cells",
+          "digest": "",
+          "tests": []
+        },
+        "cluster_cells": {
+          "key": "cluster_cells",
+          "digest": "",
+          "tests": []
+        }
+      }
+    },
+    "sc-atacseq-wf/sc-rnaseq-wf/workflows/preprocess/preprocess.wdl": {
+      "key": "sc-atacseq-wf/sc-rnaseq-wf/workflows/preprocess/preprocess.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {
+        "check_output_files_exist": {
+          "key": "check_output_files_exist",
+          "digest": "",
+          "tests": []
+        },
+        "cellranger_count": {
+          "key": "cellranger_count",
+          "digest": "",
+          "tests": []
+        },
+        "remove_technical_artifacts": {
+          "key": "remove_technical_artifacts",
+          "digest": "",
+          "tests": []
+        },
+        "counts_to_adata": {
+          "key": "counts_to_adata",
+          "digest": "",
+          "tests": []
+        }
+      }
+    },
+    "sc-atacseq-wf/sc-rnaseq-wf/sc-rnaseq-wdl-ci-custom-test-dir/check_parquet.wdl": {
+      "key": "sc-atacseq-wf/sc-rnaseq-wf/sc-rnaseq-wdl-ci-custom-test-dir/check_parquet.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {
+        "check_parquet": {
+          "key": "check_parquet",
+          "digest": "",
+          "tests": []
+        }
+      }
+    },
+    "sc-atacseq-wf/sc-rnaseq-wf/sc-rnaseq-wdl-ci-custom-test-dir/image_validator.wdl": {
+      "key": "sc-atacseq-wf/sc-rnaseq-wf/sc-rnaseq-wdl-ci-custom-test-dir/image_validator.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {
+        "image_validator": {
+          "key": "image_validator",
+          "digest": "",
+          "tests": []
+        }
+      }
+    }
+  },
+  "engines": {},
+  "test_params": {
+    "global_params": {},
+    "engine_params": {}
+  }
+}
