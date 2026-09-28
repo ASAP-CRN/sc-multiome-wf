@@ -71,17 +71,9 @@ workflow sc_multiome_analysis {
 		Int multivi_batch_size = 128
 
 		# Multiome - Cohort analysis
-		File tss_bed
-		String celltype_key = "cell_type"
 		Boolean peak_gene_only = true
-		Int window = 500000
-		Int min_cells = 10
-		Int min_group_cells = 50
 		Float min_linkage_corr = 0.1
 		Float min_linkage_sig = 0.0
-		Float corr_threshold = 0.1
-		Float pval_threshold = 0.05
-		Float fdr_threshold = 0.05
 
 		# Cohort analysis
 		Boolean run_cross_team_cohort_analysis = false
@@ -253,17 +245,9 @@ workflow sc_multiome_analysis {
 					multivi_batch_size = multivi_batch_size,
 					n_neighbors = n_neighbors,
 					leiden_res = leiden_res,
-					tss_bed = tss_bed,
-					celltype_key = celltype_key,
 					peak_gene_only = peak_gene_only,
-					window = window,
-					min_cells = min_cells,
-					min_group_cells = min_group_cells,
 					min_linkage_corr = min_linkage_corr,
 					min_linkage_sig = min_linkage_sig,
-					corr_threshold = corr_threshold,
-					pval_threshold = pval_threshold,
-					fdr_threshold = fdr_threshold,
 					workflow_name = workflow_name,
 					workflow_version = workflow_version,
 					workflow_release = workflow_release,
@@ -369,17 +353,9 @@ workflow sc_multiome_analysis {
 				multivi_batch_size = multivi_batch_size,
 				n_neighbors = n_neighbors,
 				leiden_res = leiden_res,
-				tss_bed = tss_bed,
-				celltype_key = celltype_key,
 				peak_gene_only = peak_gene_only,
-				window = window,
-				min_cells = min_cells,
-				min_group_cells = min_group_cells,
 				min_linkage_corr = min_linkage_corr,
 				min_linkage_sig = min_linkage_sig,
-				corr_threshold = corr_threshold,
-				pval_threshold = pval_threshold,
-				fdr_threshold = fdr_threshold,
 				workflow_name = workflow_name,
 				workflow_version = workflow_version,
 				workflow_release = workflow_release,
@@ -655,8 +631,6 @@ workflow sc_multiome_analysis {
 		Array[File?] multiome_project_celltype_peaks_matrix_adata_object = multiome_project_cohort_analysis.celltype_peaks_matrix_adata_object
 		Array[File?] multiome_project_feature_linked_mudata_object = multiome_project_cohort_analysis.feature_linked_mudata_object
 		Array[File?] multiome_project_feature_linkage_csv = multiome_project_cohort_analysis.feature_linkage_csv
-		Array[File?] multiome_project_linked_by_celltype_mudata_object = multiome_project_cohort_analysis.linked_by_celltype_mudata_object
-		Array[File?] multiome_project_peak_gene_links_csv = multiome_project_cohort_analysis.peak_gene_links_csv
 
 		Array[Array[File]?] multiome_preprocess_manifests = multiome_project_cohort_analysis.preprocess_manifest_tsvs
 		Array[Array[File]?] multiome_project_manifests = multiome_project_cohort_analysis.cohort_analysis_manifest_tsvs
@@ -674,8 +648,6 @@ workflow sc_multiome_analysis {
 		File? multiome_cohort_celltype_peaks_matrix_adata_object = multiome_cross_team_cohort_analysis.celltype_peaks_matrix_adata_object
 		File? multiome_cohort_feature_linked_mudata_object = multiome_cross_team_cohort_analysis.feature_linked_mudata_object
 		File? multiome_cohort_feature_linkage_csv = multiome_cross_team_cohort_analysis.feature_linkage_csv
-		File? multiome_cohort_linked_by_celltype_mudata_object = multiome_cross_team_cohort_analysis.linked_by_celltype_mudata_object
-		File? multiome_cohort_peak_gene_links_csv = multiome_cross_team_cohort_analysis.peak_gene_links_csv
 
 		Array[File]? multiome_cohort_manifests = multiome_cross_team_cohort_analysis.cohort_analysis_manifest_tsvs
 	}
@@ -721,17 +693,8 @@ workflow sc_multiome_analysis {
 		multivi_max_epochs: {help: "The maximum number of full passes through the training data during MultiVI model training. If the model converges early, training will halt before this limit is reached. [300]"}
 		multivi_n_hidden: {help: "Number of nodes per hidden layer for MultiVI (i.e., the number of neurons per fully-connected layer between the input features and the latent space). [128]"}
 		multivi_batch_size: {help: "Training batch size for MultiVI. Controls how many cells are processed per training step. [128]"}
-		tss_bed: {help: "Gene TSS table derived from the Cell Ranger ARC reference (regions/tss.bed), reshaped to three columns: chrom, tss, gene_name. Gene names must match the RNA modality var_names."}
-		celltype_key: {help: "Column in mdata.obs holding the transferred cell-type label. ['cell_type']"}
 		peak_gene_only: {help: "Keep only peak-gene and gene-peak linkages (drop peak-peak). [true]"}
-		window: {help: "Distance in bp up- and downstream of each gene's TSS within which peaks are tested for linkage. [500000]"}
-		min_cells: {help: "Minimum number of cells in which a peak must be accessible to be tested. [10]"}
-		min_group_cells: {help: "Minimum number of cells in a cell type for linkage to be computed for that group; smaller groups are skipped as unstable. [50]"}
-		min_linkage_corr: {help: "Minimum absolute feature linkage correlation to retain. [0.1]"}
 		min_linkage_sig: {help: "Minimum feature linkage significance to retain. [0.0]"}
-		corr_threshold: {help: "Minimum absolute Pearson correlation between peak accessibility and gene expression to retain a link. [0.1]"}
-		pval_threshold: {help: "Maximum p-value to retain a link. [0.05]"}
-		fdr_threshold: {help: "Benjamini-Hochberg FDR applied across all peak-gene tests within a cell type. [0.05]"}
 		run_cross_team_cohort_analysis: {help: "Whether to run downstream harmonization steps on all samples across projects. If set to false, only preprocessing steps (cellranger and generating the initial adata object(s)) will run for samples. [false]"}
 		cohort_raw_data_bucket: {help: "Bucket to upload cross-team cohort intermediate files to."}
 		cohort_staging_data_buckets: {help: "Set of buckets to stage cross-team cohort analysis outputs in."}
