@@ -152,6 +152,47 @@ def stack_linkages(
     return links
 
 
+def combine_metadata(
+    mdata: md.MuData
+):
+    rna = mdata.mod["rna"].obs
+    atac = mdata.mod["atac"].obs
+
+    required = ["dataset", "sample", "batch", "sex", "team", "batch_id"]
+    optional = ["pool", "source_subject", "subject"]
+
+    shared = {}
+    for col in required + optional:
+        in_rna, in_atac = col in rna, col in atac
+        if not (in_rna or in_atac):
+            if col in required:
+                raise KeyError(f"'{col}' not found in rna or atac obs")
+            continue
+        if in_rna and in_atac:
+            a = rna[col].astype(str)
+            b = atac[col].reindex(rna.index).astype(str)
+            if not a.equals(b):
+                print(f"Warning: '{col}' differs between rna and atac "
+                      f"in {(a != b).sum()} cells; using rna values")
+        shared[col] = rna[col] if in_rna else atac[col]
+
+    shared = pd.DataFrame(shared)
+    drop = list(shared.columns) + ["cell_type"]  # cell_type already in mdata.obs
+
+    combined = pd.concat(
+        [
+            mdata.obs,
+            shared,
+            rna.drop(columns=drop, errors="ignore").add_prefix("rna:"),
+            atac.drop(columns=drop, errors="ignore").add_prefix("atac:"),
+        ],
+        axis=1,
+    )
+    combined.index.name = "barcode"
+    print(combined.columns.tolist())
+    return combined
+
+
 def main(args):
     mdata = md.read_h5mu(args.mudata_input)
 
@@ -170,10 +211,16 @@ def main(args):
     )
     print(f"Wrote {args.mudata_output}")
 
+    print(f"Starting to export metadata for MuData...")
+    mdata
+    combined_metadata = combine_metadata(mdata)
+    combined_metadata.to_csv(args.metadata_output)
+    print(f"Wrote {args.metadata_output}")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Stack per-sample Cell Ranger ARC feature_linkage.bedpe files into the merged Multiome MuData"
+        description="Stack per-sample Cell Ranger ARC feature_linkage.bedpe files into the merged Multiome MuData and export final files"
     )
     parser.add_argument(
         "-a",
@@ -230,6 +277,13 @@ if __name__ == "__main__":
         type=str,
         required=True,
         help="Output CSV file name for the stacked per-sample linkage table",
+    )
+    parser.add_argument(
+        "-m",
+        "--metadata-output",
+        type=str,
+        required=True,
+        help="Output CSV file name for the MuData combined metadata from Multiome, RNA, and ATAC obs",
     )
 
     args = parser.parse_args()

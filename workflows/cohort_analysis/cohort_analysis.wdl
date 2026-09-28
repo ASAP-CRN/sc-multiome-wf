@@ -169,8 +169,9 @@ workflow cohort_analysis {
 			celltype_peak_calling.peaks_matrix_adata_object
 		],
 		[
-			parse_feature_linkage.feature_linked_mudata_object,
-			parse_feature_linkage.feature_linkage_csv
+			parse_feature_linkage.final_mudata_object,
+			parse_feature_linkage.feature_linkage_csv,
+			parse_feature_linkage.final_metadata_csv
 		]
 	]) #!StringCoercion
 
@@ -205,8 +206,9 @@ workflow cohort_analysis {
 		File celltype_peaks_matrix_adata_object = celltype_peak_calling.peaks_matrix_adata_object #!FileCoercion
 		
 		# Add Cell Ranger feature linkage bedpe to mudata object
-		File feature_linked_mudata_object = parse_feature_linkage.feature_linked_mudata_object #!FileCoercion
+		File final_mudata_object = parse_feature_linkage.final_mudata_object #!FileCoercion
 		File feature_linkage_csv = parse_feature_linkage.feature_linkage_csv #!FileCoercion
+		File final_metadata_csv = parse_feature_linkage.final_metadata_csv #!FileCoercion
 
 		Array[File] preprocess_manifest_tsvs = upload_preprocess_files.manifests #!FileCoercion
 		Array[File] cohort_analysis_manifest_tsvs = upload_cohort_analysis_files.manifests #!FileCoercion
@@ -410,20 +412,23 @@ task parse_feature_linkage {
 			~{peak_gene_only_flag} \
 			--corr-threshold ~{min_linkage_corr} \
 			--significance-threshold ~{min_linkage_sig} \
-			--mudata-output "~{cohort_id}.feature_linked.h5mu" \
-			--links-output "~{cohort_id}.feature_linkage_per_sample.csv"
+			--mudata-output "~{cohort_id}.final.h5mu" \
+			--links-output "~{cohort_id}.feature_linkage_per_sample.csv" \
+			--metadata-output "~{cohort_id}.final_metadata.csv"
 
 		upload_outputs \
 			-b ~{billing_project} \
 			-d ~{raw_data_path} \
 			-i ~{write_tsv(workflow_info)} \
-			"~{cohort_id}.feature_linked.h5mu" \
-			-o "~{cohort_id}.feature_linkage_per_sample.csv"
+			-o "~{cohort_id}.final.h5mu" \
+			-o "~{cohort_id}.feature_linkage_per_sample.csv" \
+			-o "~{cohort_id}.final_metadata.csv"
 	>>>
 
 	output {
-		String feature_linked_mudata_object = "~{raw_data_path}/~{cohort_id}.feature_linked.h5mu"
+		String final_mudata_object = "~{raw_data_path}/~{cohort_id}.final.h5mu"
 		String feature_linkage_csv = "~{raw_data_path}/~{cohort_id}.feature_linkage_per_sample.csv"
+		String final_metadata_csv = "~{raw_data_path}/~{cohort_id}.final_metadata.csv"
 	}
 
 	runtime {
