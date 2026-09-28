@@ -7,7 +7,7 @@
       "tasks": {
         "joint_qc": {
           "key": "joint_qc",
-          "digest": "",
+          "digest": "4aanc3ggvuvkvg7byiv7fi6gcatza653",
           "tests": [
             {
               "inputs": {
@@ -38,7 +38,7 @@
         },
         "annotate_and_transfer": {
           "key": "annotate_and_transfer",
-          "digest": "",
+          "digest": "k52rwoh6nma4eqvncpwlu55i5kn2slfr",
           "tests": [
             {
               "inputs": {
@@ -444,7 +444,7 @@
           "tests": [
             {
               "inputs": {
-                "dataset_id": "${dataset_id}",
+                "dataset_id": "${asap_dataset_id}",
                 "pool_id": "${pool_id}",
                 "source_subject_ids": [
                   "${source_subject_id}"
