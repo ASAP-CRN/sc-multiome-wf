@@ -526,7 +526,7 @@ task cellranger_arc_count {
 
 	Int threads = 16
 	Int mem_gb = 48
-	Int disk_size = ceil((size(cellranger_arc_reference_data, "GB") + size(flatten([fastq_R1s, fastq_R2s, fastq_I1s, fastq_I2s]), "GB")) * 4 + 50)
+	Int disk_size = ceil((size(cellranger_arc_reference_data, "GB") + size(flatten([fastq_R1s, fastq_R2s, fastq_I1s, fastq_I2s]), "GB")) * 5 + 300)
 
 	command <<<
 		set -euo pipefail
