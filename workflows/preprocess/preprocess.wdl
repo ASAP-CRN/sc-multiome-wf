@@ -30,15 +30,15 @@ workflow preprocess {
 	}
 
 	# Task and subworkflow versions
+	## If imports, this must match https://github.com/ASAP-CRN/sc-rnaseq-wf/blob/main/workflows/preprocess/preprocess.wdl and https://github.com/ASAP-CRN/sc-atacseq-wf/blob/main/workflows/preprocess/preprocess.wdl
 	String sub_workflow_name = "preprocess"
 	String cellranger_arc_task_version = "1.0.0"
-	# TODO This must match https://github.com/ASAP-CRN/sc-rnaseq-wf/blob/main/workflows/preprocess/preprocess.wdl and https://github.com/ASAP-CRN/sc-atacseq-wf/blob/main/workflows/preprocess/preprocess.wdl
-	String cellbender_task_version = "1.0.1"
+	String cellbender_task_version = "1.0.0"
 	String rna_demux_counts_task_version = "1.0.0"
 	String rna_demux_adata_task_version = "1.0.0"
 	String atac_demux_fragments_task_version = "1.0.0"
 	String atac_demux_adata_task_version = "1.0.0"
-	String rna_adata_task_version = "1.2.0"
+	String rna_adata_task_version = "1.0.0"
 	String atac_adata_task_version = "1.0.0"
 
 	Array[Array[String]] workflow_info = [[run_timestamp, workflow_name, workflow_version, workflow_release]]
