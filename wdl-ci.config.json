@@ -284,7 +284,10 @@
                 "gex_possorted_bam": {
                   "value": "${input_resources_file_path}/${preprocess_workflow_name}/multiome/${dataset_sample_id}.gex_possorted_bam.bam",
                   "test_tasks": [
-                    "compare_file_basename"
+                    "compare_file_basename",
+                    "check_coordinate_sorted_alignment",
+                    "calculate_sam_record_md5sum",
+                    "samtools_quickcheck"
                   ]
                 },
                 "gex_possorted_bam_index": {
@@ -296,7 +299,10 @@
                 "atac_possorted_bam": {
                   "value": "${input_resources_file_path}/${preprocess_workflow_name}/multiome/${dataset_sample_id}.atac_possorted_bam.bam",
                   "test_tasks": [
-                    "compare_file_basename"
+                    "compare_file_basename",
+                    "check_coordinate_sorted_alignment",
+                    "calculate_sam_record_md5sum",
+                    "samtools_quickcheck"
                   ]
                 },
                 "atac_possorted_bam_index": {
