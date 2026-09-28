@@ -81,8 +81,8 @@ def main(args):
             filename=args.cellbender_counts
         )
     else:
-         adata = anndata_from_h5(
-            filename=args.cellbender_counts
+        adata = anndata_from_h5(
+            args.cellbender_counts
         )
     adata.var_names_make_unique()
     adata = gene_expression_only(adata)
