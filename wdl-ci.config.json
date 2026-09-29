@@ -70,7 +70,7 @@
         },
         "parse_feature_linkage": {
           "key": "parse_feature_linkage",
-          "digest": "",
+          "digest": "xnrwags3ctvsutbj5ampvdnxmrwnpz22",
           "tests": [
             {
               "inputs": {
@@ -173,7 +173,11 @@
                 "multivi_integrated_mudata_object": "${input_resources_file_path}/${cohort_workflow_name}/multiome/${cohort_id}.multivi_integrated.h5mu",
                 "multivi_latent_key": "${multivi_latent_key}",
                 "n_neighbors": 15,
-                "leiden_res": [0.2, 0.5, 1.0],
+                "leiden_res": [
+                  0.2,
+                  0.5,
+                  1.0
+                ],
                 "raw_data_path": "${cohort_raw_data_path}",
                 "workflow_info": "${workflow_info}",
                 "billing_project": "${billing_project}",
@@ -438,7 +442,7 @@
         },
         "rna_demux_counts": {
           "key": "rna_demux_counts",
-          "digest": "",
+          "digest": "cvc44fdt4m7zqtbsxvulffyotdjtfasc",
           "tests": [
             {
               "inputs": {
