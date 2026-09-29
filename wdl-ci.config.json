@@ -127,7 +127,7 @@
       "tasks": {
         "integrate_multivi": {
           "key": "integrate_multivi",
-          "digest": "",
+          "digest": "6agqtffsv46kiwvbb2hoenbu6n46cgwe",
           "tests": [
             {
               "inputs": {
@@ -165,7 +165,7 @@
         },
         "cluster_multivi": {
           "key": "cluster_multivi",
-          "digest": "",
+          "digest": "i2vey62v7f2oki3ny6ymclclzk2cim67",
           "tests": [
             {
               "inputs": {
@@ -173,7 +173,11 @@
                 "multivi_integrated_mudata_object": "${input_resources_file_path}/${cohort_workflow_name}/multiome/${cohort_id}.multivi_integrated.h5mu",
                 "multivi_latent_key": "${multivi_latent_key}",
                 "n_neighbors": 15,
-                "leiden_res": [0.2, 0.5, 1.0],
+                "leiden_res": [
+                  0.2,
+                  0.5,
+                  1.0
+                ],
                 "raw_data_path": "${cohort_raw_data_path}",
                 "workflow_info": "${workflow_info}",
                 "billing_project": "${billing_project}",
@@ -362,7 +366,7 @@
         },
         "rna_remove_technical_artifacts": {
           "key": "rna_remove_technical_artifacts",
-          "digest": "",
+          "digest": "co2xthdqgcwpmrvhmqczrrm7bkq4yejj",
           "tests": [
             {
               "inputs": {
@@ -524,7 +528,7 @@
         },
         "fragments_to_adata": {
           "key": "fragments_to_adata",
-          "digest": "",
+          "digest": "ygaxje4pcgdlolevc6hxd7hnxu6pah6x",
           "tests": [
             {
               "inputs": {
