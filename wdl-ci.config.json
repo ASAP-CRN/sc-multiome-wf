@@ -15,7 +15,7 @@
                 "filtered_rna_adata_object": "${input_resources_file_path}/${cohort_id}.merged_filtered.h5ad",
                 "filtered_atac_adata_object": "${input_resources_file_path}/${cohort_id}.filtered.h5ad",
                 "per_barcode_metrics_csvs": [
-                  "${input_resources_file_path}/${preprocess_workflow_name}/multiome/${asap_dataset_id}.${pool_id}.per_barcode_metrics.csv"
+                  "${input_resources_file_path}/${preprocess_workflow_name}/multiome/${dataset_sample_id}.per_barcode_metrics.csv"
                 ],
                 "min_overlap_frac": 0.5,
                 "raw_data_path": "${cohort_raw_data_path}",
@@ -76,7 +76,7 @@
               "inputs": {
                 "cohort_id": "${cohort_id}",
                 "cellranger_arc_feature_linkage_bedpe": [
-                  "${input_resources_file_path}/${preprocess_workflow_name}/multiome/${asap_dataset_id}.${pool_id}.feature_linkage.bedpe"
+                  "${input_resources_file_path}/${preprocess_workflow_name}/multiome/${dataset_sample_id}.feature_linkage.bedpe"
                 ],
                 "annotated_mudata_object": "${input_resources_file_path}/${cohort_workflow_name}/multiome/${cohort_id}.annotated.h5mu",
                 "peak_gene_only": true,
@@ -464,18 +464,9 @@
                 "zones": "${zones}"
               },
               "output_tests": {
-                "subject_demux_cellbender_counts": {
-                  "value": [
-                    "${input_resources_file_path}/${preprocess_workflow_name}/rna/${source_subject_id}.demux_counts.h5ad"
-                  ],
-                  "test_tasks": [
-                    "compare_file_basename",
-                    "check_hdf5"
-                  ]
-                },
                 "sample_demux_cellbender_counts": {
                   "value": [
-                    "${input_resources_file_path}/${preprocess_workflow_name}/rna/${sample_id}.${pool_id}.demux_counts.h5ad"
+                    "${input_resources_file_path}/${preprocess_workflow_name}/rna/${asap_dataset_id}.${sample_id}.${pool_id}.demux_counts.h5ad"
                   ],
                   "test_tasks": [
                     "compare_file_basename",
@@ -488,7 +479,7 @@
         },
         "counts_to_adata": {
           "key": "counts_to_adata",
-          "digest": "",
+          "digest": "ttmdrhjmeoheqsvnznpcad4uy4kyvzy6",
           "tests": [
             {
               "inputs": {
