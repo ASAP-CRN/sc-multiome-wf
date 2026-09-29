@@ -572,9 +572,6 @@ task cellranger_arc_count {
 			--localcores ~{threads} \
 			--localmem ~{mem_gb - 4}
 
-		# TMP
-		ls -lR
-
 		# Save Cell Ranger ARC outs
 		cp -r ~{sample_id}/outs multiome_outputs
 		tar -czvf "~{dataset_sample_id}.cellranger_arc_multiome_outputs.tar.gz" multiome_outputs
