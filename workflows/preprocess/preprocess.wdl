@@ -542,12 +542,13 @@ task cellranger_arc_count {
 		mkdir fastqs
 		while read -r fastq || [[ -n "${fastq}" ]]; do
 			if [[ -n "${fastq}" ]]; then
-				validated_fastq_name=$(fix_fastq_names --fastq "${fastq}" --sample-id "~{sample_id}")
-				if [[ -e "fastqs/${validated_fastq_name}" ]]; then
-					echo "[ERROR] Something's gone wrong with fastq renaming; trying to create fastq [${validated_fastq_name}] but it already exists. Exiting."
+				check_fastq_names --fastq "${fastq}"
+				fastq_basename=$(basename "${fastq}")
+				if [[ -e "fastqs/${fastq_basename}" ]]; then
+					echo "[ERROR] Duplicate fastq basename [${fastq_basename}]; fastqs must have unique basenames. Exiting."
 					exit 1
 				else
-					ln -s "${fastq}" "fastqs/${validated_fastq_name}"
+					ln -s "${fastq}" "fastqs/${fastq_basename}"
 				fi
 			fi
 		done < <(cat \
