@@ -173,11 +173,7 @@
                 "multivi_integrated_mudata_object": "${input_resources_file_path}/${cohort_workflow_name}/multiome/${cohort_id}.multivi_integrated.h5mu",
                 "multivi_latent_key": "${multivi_latent_key}",
                 "n_neighbors": 15,
-                "leiden_res": [
-                  0.2,
-                  0.5,
-                  1.0
-                ],
+                "leiden_res": [0.2, 0.5, 1.0],
                 "raw_data_path": "${cohort_raw_data_path}",
                 "workflow_info": "${workflow_info}",
                 "billing_project": "${billing_project}",
@@ -213,7 +209,7 @@
       "tasks": {
         "cellranger_arc_count": {
           "key": "cellranger_arc_count",
-          "digest": "",
+          "digest": "si4gu4y2gbpi5p2a2dfeligxdszyl2zo",
           "tests": [
             {
               "inputs": {
@@ -290,7 +286,6 @@
                   "test_tasks": [
                     "compare_file_basename",
                     "check_coordinate_sorted_alignment",
-                    "calculate_sam_record_md5sum",
                     "samtools_quickcheck"
                   ]
                 },
@@ -305,7 +300,6 @@
                   "test_tasks": [
                     "compare_file_basename",
                     "check_coordinate_sorted_alignment",
-                    "calculate_sam_record_md5sum",
                     "samtools_quickcheck"
                   ]
                 },
@@ -341,7 +335,7 @@
                   "value": "${input_resources_file_path}/${preprocess_workflow_name}/multiome/${dataset_sample_id}.atac_cut_sites.bigwig",
                   "test_tasks": [
                     "compare_file_basename",
-                    "check_hdf5"
+                    "bigwig_validator"
                   ]
                 },
                 "atac_peak_annotation_tsv": {
@@ -451,10 +445,12 @@
                 "dataset_id": "${asap_dataset_id}",
                 "pool_id": "${pool_id}",
                 "source_subject_ids": [
-                  "${source_subject_id}"
+                  "${source_subject_id}",
+                  "ASA_015"
                 ],
                 "sample_ids": [
-                  "${sample_id}"
+                  "${sample_id}",
+                  "ASAP_PMDBS_001088_s002_BiolRep2"
                 ],
                 "cellbender_counts": "${input_resources_file_path}/${preprocess_workflow_name}/rna/${dataset_sample_id}.cellbender.h5",
                 "vireo_assignment_files": [
@@ -588,7 +584,7 @@
       "project_sample_ids": [
         [
           "team-voet",
-          "ASAP_PMDBS_001087_s002_BiolRep2.MO001a",
+          "ASAP_PMDBS_001087_s002_BiolRep1.MO001a",
           "https://doi.org/10.5281/zenodo.18988753"
         ],
         [
