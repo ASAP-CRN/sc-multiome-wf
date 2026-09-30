@@ -298,7 +298,7 @@ task joint_qc {
 		cpu: 16
 		cpuPlatform: "Intel Cascade Lake"
 		memory: "~{mem_gb} GB"
-		disks: "local-disk ~{disk_size} HDD"
+		disks: "local-disk ~{disk_size} SSD"
 		bootDiskSizeGb: 40
 		zones: zones
 	}
@@ -359,7 +359,7 @@ task annotate_and_transfer {
 		cpu: 4
 		cpuPlatform: "Intel Cascade Lake"
 		memory: "~{mem_gb} GB"
-		disks: "local-disk ~{disk_size} HDD"
+		disks: "local-disk ~{disk_size} SSD"
 		bootDiskSizeGb: 40
 		zones: zones
 	}
@@ -436,7 +436,7 @@ task parse_feature_linkage {
 		cpu: 4
 		cpuPlatform: "Intel Cascade Lake"
 		memory: "~{mem_gb} GB"
-		disks: "local-disk ~{disk_size} HDD"
+		disks: "local-disk ~{disk_size} SSD"
 		bootDiskSizeGb: 40
 		zones: zones
 	}
