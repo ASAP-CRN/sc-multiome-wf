@@ -8,7 +8,7 @@
   "sc_multiome_analysis.pct_counts_mt_max": "Int (optional, default = 10)",
   "sc_multiome_analysis.doublet_score_max": "Float (optional, default = 0.2)",
   "sc_multiome_analysis.total_counts_limits": "Array[Int] (optional, default = [100, 100000])",
-  "sc_multiome_analysis.n_genes_by_counts_limits": "Array[Int] (optional, default = [100, 10000])",
+  "sc_multiome_analysis.n_genes_by_counts_limits": "Array[Int] (optional, default = [100, 15000])",
   "sc_multiome_analysis.n_mads_lower": "Float (optional, default = 3)",
   "sc_multiome_analysis.n_mads_upper": "Float (optional, default = 5)",
   "sc_multiome_analysis.mmc_taxonomy": "String ('SEAAD', 'Siletti', or 'ABC')",
