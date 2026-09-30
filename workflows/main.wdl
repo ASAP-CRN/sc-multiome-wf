@@ -625,9 +625,6 @@ workflow sc_multiome_analysis {
 		Array[File?] multiome_project_multivi_clustered_umap_png = multiome_project_cohort_analysis.multivi_clustered_umap_png
 		Array[File?] multiome_project_annotated_mudata_object = multiome_project_cohort_analysis.annotated_mudata_object
 		Array[File?] multiome_project_atac_annotated_adata_object = multiome_project_cohort_analysis.atac_annotated_adata_object
-		Array[File?] multiome_project_celltype_merged_peaks_adata_object = multiome_project_cohort_analysis.celltype_merged_peaks_adata_object
-		Array[File?] multiome_project_celltype_merged_peaks_csv = multiome_project_cohort_analysis.celltype_merged_peaks_csv
-		Array[File?] multiome_project_celltype_peaks_matrix_adata_object = multiome_project_cohort_analysis.celltype_peaks_matrix_adata_object
 		Array[File?] multiome_project_final_mudata_object = multiome_project_cohort_analysis.final_mudata_object
 		Array[File?] multiome_project_feature_linkage_csv = multiome_project_cohort_analysis.feature_linkage_csv
 		Array[File?] multiome_project_final_metadata_csv = multiome_project_cohort_analysis.final_metadata_csv
@@ -643,9 +640,6 @@ workflow sc_multiome_analysis {
 		File? multiome_cohort_multivi_clustered_umap_png = multiome_cross_team_cohort_analysis.multivi_clustered_umap_png
 		File? multiome_cohort_annotated_mudata_object = multiome_cross_team_cohort_analysis.annotated_mudata_object
 		File? multiome_cohort_atac_annotated_adata_object = multiome_cross_team_cohort_analysis.atac_annotated_adata_object
-		File? multiome_cohort_celltype_merged_peaks_adata_object = multiome_cross_team_cohort_analysis.celltype_merged_peaks_adata_object
-		File? multiome_cohort_celltype_merged_peaks_csv = multiome_cross_team_cohort_analysis.celltype_merged_peaks_csv
-		File? multiome_cohort_celltype_peaks_matrix_adata_object = multiome_cross_team_cohort_analysis.celltype_peaks_matrix_adata_object
 		File? multiome_cohort_final_mudata_object = multiome_cross_team_cohort_analysis.final_mudata_object
 		File? multiome_cohort_feature_linkage_csv = multiome_cross_team_cohort_analysis.feature_linkage_csv
 		File? multiome_cohort_final_metadata_csv = multiome_cross_team_cohort_analysis.final_metadata_csv

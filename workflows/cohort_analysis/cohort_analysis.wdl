@@ -4,7 +4,6 @@ version 1.0
 
 import "../../wf-common/wdl/tasks/write_cohort_sample_list.wdl" as WriteCohortSampleList
 import "multivi_integration/multivi_integration.wdl" as MultiVIIntegration
-import "../../sc-atacseq-wf/workflows/cohort_analysis/cohort_analysis.wdl" as ScAtacCohortAnalysis
 import "../../wf-common/wdl/tasks/upload_final_outputs.wdl" as UploadFinalOutputs
 
 workflow cohort_analysis {
@@ -115,19 +114,6 @@ workflow cohort_analysis {
 			zones = zones
 	}
 
-	call ScAtacCohortAnalysis.peak_calling as celltype_peak_calling {
-		input:
-			cohort_id = cohort_id,
-			integrated_adata_object = annotate_and_transfer.atac_annotated_adata_object,
-			integration_method = "multivi",
-			macs3_groupby = "cell_type",
-			raw_data_path = raw_data_path,
-			workflow_info = workflow_info,
-			billing_project = billing_project,
-			container_registry = container_registry,
-			zones = zones
-	}
-
 	call parse_feature_linkage {
 		input:
 			cohort_id = cohort_id,
@@ -164,11 +150,6 @@ workflow cohort_analysis {
 			multivi_integration.multivi_clustered_umap_png
 		],
 		[
-			celltype_peak_calling.merged_peaks_adata_object,
-			celltype_peak_calling.merged_peaks_csv,
-			celltype_peak_calling.peaks_matrix_adata_object
-		],
-		[
 			parse_feature_linkage.final_mudata_object,
 			parse_feature_linkage.feature_linkage_csv,
 			parse_feature_linkage.final_metadata_csv
@@ -199,11 +180,6 @@ workflow cohort_analysis {
 		# Annotated cell type transfer to mudata object
 		File annotated_mudata_object = annotate_and_transfer.annotated_mudata_object
 		File atac_annotated_adata_object = annotate_and_transfer.atac_annotated_adata_object
-
-		# Cell type peak calling from sc-atacseq-wf
-		File celltype_merged_peaks_adata_object = celltype_peak_calling.merged_peaks_adata_object #!FileCoercion
-		File celltype_merged_peaks_csv = celltype_peak_calling.merged_peaks_csv #!FileCoercion
-		File celltype_peaks_matrix_adata_object = celltype_peak_calling.peaks_matrix_adata_object #!FileCoercion
 		
 		# Add Cell Ranger feature linkage bedpe to mudata object
 		File final_mudata_object = parse_feature_linkage.final_mudata_object #!FileCoercion
