@@ -402,7 +402,6 @@ workflow sc_multiome_analysis {
 		Array[Array[File]] cellbender_log = preprocess.log
 		Array[Array[File]] cellbender_metrics_csv = preprocess.metrics_csv
 		Array[Array[File]] cellbender_posterior_probability = preprocess.posterior_probability
-		Array[Array[File]] rna_subject_demux_cellbender_counts = preprocess.rna_subject_demux_cellbender_counts
 		Array[Array[File]] rna_sample_demux_cellbender_counts = preprocess.rna_sample_demux_cellbender_counts
 		Array[Array[File]] rna_initial_demux_adata_object = preprocess.rna_initial_demux_adata_object
 		Array[Array[File]] atac_subject_split_fragments_tsv_gz = preprocess.atac_subject_split_fragments_tsv_gz

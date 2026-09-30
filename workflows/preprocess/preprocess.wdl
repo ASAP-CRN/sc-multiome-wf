@@ -30,15 +30,15 @@ workflow preprocess {
 	}
 
 	# Task and subworkflow versions
+	## If imports, this must match https://github.com/ASAP-CRN/sc-rnaseq-wf/blob/main/workflows/preprocess/preprocess.wdl and https://github.com/ASAP-CRN/sc-atacseq-wf/blob/main/workflows/preprocess/preprocess.wdl
 	String sub_workflow_name = "preprocess"
 	String cellranger_arc_task_version = "1.0.0"
-	# TODO This must match https://github.com/ASAP-CRN/sc-rnaseq-wf/blob/main/workflows/preprocess/preprocess.wdl and https://github.com/ASAP-CRN/sc-atacseq-wf/blob/main/workflows/preprocess/preprocess.wdl
-	String cellbender_task_version = "1.0.1"
+	String cellbender_task_version = "1.0.0"
 	String rna_demux_counts_task_version = "1.0.0"
 	String rna_demux_adata_task_version = "1.0.0"
 	String atac_demux_fragments_task_version = "1.0.0"
 	String atac_demux_adata_task_version = "1.0.0"
-	String rna_adata_task_version = "1.2.0"
+	String rna_adata_task_version = "1.0.0"
 	String atac_adata_task_version = "1.0.0"
 
 	Array[Array[String]] workflow_info = [[run_timestamp, workflow_name, workflow_version, workflow_release]]
@@ -415,7 +415,6 @@ workflow preprocess {
 		Array[File] posterior_probability = posterior_probability_output #!FileCoercion
 
 		# RNA - Demultiplexed counts and AnnData object per-sample data
-		Array[File] rna_subject_demux_cellbender_counts = flatten(select_all(rna_demux_counts.subject_demux_cellbender_counts))
 		Array[File] rna_sample_demux_cellbender_counts = flatten(select_all(sample_demux_cellbender_counts_output)) #!FileCoercion
 		Array[File] rna_initial_demux_adata_object = flatten(select_all(preprocessed_rna_demux_adata_object_output)) #!FileCoercion
 
@@ -818,7 +817,6 @@ task rna_demux_counts {
 	>>>
 
 	output {
-		Array[File] subject_demux_cellbender_counts = glob("*~{pool_id}.demux_counts.h5ad")
 		Array[String] sample_demux_cellbender_counts = read_lines("sample_cellbender_counts_filenames.txt")
 	}
 
