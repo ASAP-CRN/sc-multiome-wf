@@ -799,7 +799,16 @@ task rna_demux_counts {
 			--pool-id ~{pool_id} \
 			--dataset-id ~{dataset_id}
 
-		files_to_upload=(*~{pool_id}.demux_counts.h5ad)
+		# List outputs in sample_ids order; callers index this by multiplexed sample position
+		files_to_upload=()
+		while IFS=$'\t' read -r source_subject_id sample_id; do
+			f="~{dataset_id}.${sample_id}.~{pool_id}.demux_counts.h5ad"
+			if [[ ! -e "${f}" ]]; then
+				echo "[ERROR] No cells for subject ${source_subject_id} (sample ${sample_id}) in pool ~{pool_id}" >&2
+				exit 1
+			fi
+			files_to_upload+=("${f}")
+		done < metadata.tsv
 		upload_args=()
 		for f in "${files_to_upload[@]}"; do
 			upload_args+=(-o "${f}")
