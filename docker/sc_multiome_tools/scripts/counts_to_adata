@@ -5,6 +5,7 @@ from typing import Optional
 import scanpy as sc
 from cellbender.remove_background.downstream import anndata_from_h5
 
+MIN_CELLS_FOR_SCRUBLET = 100
 
 def gene_expression_only(adata: sc.AnnData) -> sc.AnnData:
     """
@@ -52,9 +53,17 @@ def prep_metadata(
         inplace=True,
     )
 
-    sc.pp.scrublet(adata)
-    # Keep the metadata clean and drop predicted_doublet; rely on the probability of doublet (i.e., doublet_score)
-    adata.obs.drop("predicted_doublet", axis=1, inplace=True)
+    try:
+        sc.pp.scrublet(adata)
+        # Keep the metadata clean and drop predicted_doublet; rely on the probability of doublet (i.e., doublet_score)
+        adata.obs.drop("predicted_doublet", axis=1, inplace=True)
+    except ValueError:
+        # A demultiplexed donor can have too few cells for Scrublet's PCA (n_prin_comps=30)
+        if adata.n_obs >= MIN_CELLS_FOR_SCRUBLET:
+            raise
+        print(f"[WARN] Only {adata.n_obs} cells; skipping Scrublet. doublet_score set to NaN, "
+              "so these cells are removed by the doublet_score_max filter")
+        adata.obs["doublet_score"] = float("nan")
 
     print("Adding metadata to AnnData object")
     adata.obs["sample"] = sample_id
