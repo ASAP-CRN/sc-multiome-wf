@@ -660,8 +660,8 @@ workflow sc_multiome_analysis {
 		vireo_assignment_files: {help: "Vireo donor assignment CSV with columns: donor_id, sample, raw_bc. Covers all donors in the pool."}
 		pct_counts_mt_max: {help: "Maximum percentage of mitochondrial gene counts allowed per cell. [10]"}
 		doublet_score_max: {help: "Maximum doublet detection score threshold. [0.2]"}
-		total_counts_limits: {help: "Minimum and maximum total UMI (unique molecular identifier) counts per cell. [100, 100000]"}
-		n_genes_by_counts_limits: {help: "Minimum and maximum number of genes detected per cell (genes with at least one count). [100, 15000]"}
+		total_counts_limits: {help: "Minimum and maximum total UMI (unique molecular identifier) counts per cell. [500, 100000]"}
+		n_genes_by_counts_limits: {help: "Minimum and maximum number of genes detected per cell (genes with at least one count). [300, 15000]"}
 		n_mads_lower: {help: "Number of median absolute deviations below the per-sample median allowed for total UMI counts and number of genes detected per cell. [3]"}
 		n_mads_upper: {help: "Number of median absolute deviations above the per-sample median allowed for total UMI counts and number of genes detected per cell. [5]"}
 		mmc_taxonomy: {help: "Cell type taxonomy of the precomputed stats reference; appended to MMC output filenames. Must match allen_brain_mmc_precomputed_stats_h5. Options are 'SEAAD' (human), 'Siletti' (human), or 'ABC' (mouse)."}
@@ -689,6 +689,7 @@ workflow sc_multiome_analysis {
 		multivi_n_hidden: {help: "Number of nodes per hidden layer for MultiVI (i.e., the number of neurons per fully-connected layer between the input features and the latent space). [128]"}
 		multivi_batch_size: {help: "Training batch size for MultiVI. Controls how many cells are processed per training step. [128]"}
 		peak_gene_only: {help: "Keep only peak-gene and gene-peak linkages (drop peak-peak). [true]"}
+		min_linkage_corr: {help: "Minimum absolute feature linkage correlation to retain. [0.1]"}
 		min_linkage_sig: {help: "Minimum feature linkage significance to retain. [0.0]"}
 		run_cross_team_cohort_analysis: {help: "Whether to run downstream harmonization steps on all samples across projects. If set to false, only preprocessing steps (cellranger and generating the initial adata object(s)) will run for samples. [false]"}
 		cohort_raw_data_bucket: {help: "Bucket to upload cross-team cohort intermediate files to."}
