@@ -364,7 +364,7 @@
         },
         "rna_remove_technical_artifacts": {
           "key": "rna_remove_technical_artifacts",
-          "digest": "co2xthdqgcwpmrvhmqczrrm7bkq4yejj",
+          "digest": "ar6aectvlw5dz2mp6mupp54p6kdjlyma",
           "tests": [
             {
               "inputs": {
