@@ -7,7 +7,7 @@
       "tasks": {
         "joint_qc": {
           "key": "joint_qc",
-          "digest": "4aanc3ggvuvkvg7byiv7fi6gcatza653",
+          "digest": "q4szgmzxgpu6mjolqcz6vvv4htidj4ng",
           "tests": [
             {
               "inputs": {
@@ -38,7 +38,7 @@
         },
         "annotate_and_transfer": {
           "key": "annotate_and_transfer",
-          "digest": "k52rwoh6nma4eqvncpwlu55i5kn2slfr",
+          "digest": "l5bmw65zuqzn6k7oqaamy2zr55fwiuu5",
           "tests": [
             {
               "inputs": {
@@ -70,7 +70,7 @@
         },
         "parse_feature_linkage": {
           "key": "parse_feature_linkage",
-          "digest": "xnrwags3ctvsutbj5ampvdnxmrwnpz22",
+          "digest": "qyod57rrwsb2gmxts6hb7drdium5uajq",
           "tests": [
             {
               "inputs": {
@@ -127,7 +127,7 @@
       "tasks": {
         "integrate_multivi": {
           "key": "integrate_multivi",
-          "digest": "6agqtffsv46kiwvbb2hoenbu6n46cgwe",
+          "digest": "mbiehgziipiok6vx6ont6e2zc3if2f37",
           "tests": [
             {
               "inputs": {
@@ -165,7 +165,7 @@
         },
         "cluster_multivi": {
           "key": "cluster_multivi",
-          "digest": "i2vey62v7f2oki3ny6ymclclzk2cim67",
+          "digest": "5iu5vnkdgpnvmtnvbdtebmxmmhhlf56u",
           "tests": [
             {
               "inputs": {
@@ -213,7 +213,7 @@
       "tasks": {
         "cellranger_arc_count": {
           "key": "cellranger_arc_count",
-          "digest": "si4gu4y2gbpi5p2a2dfeligxdszyl2zo",
+          "digest": "xuunkqsev23iy6rm3k3fpgvi4uz3yvyq",
           "tests": [
             {
               "inputs": {
@@ -442,7 +442,7 @@
         },
         "rna_demux_counts": {
           "key": "rna_demux_counts",
-          "digest": "cvc44fdt4m7zqtbsxvulffyotdjtfasc",
+          "digest": "25ocfomf35dyn3mvby437dtvyfrvwj4x",
           "tests": [
             {
               "inputs": {
@@ -483,7 +483,7 @@
         },
         "counts_to_adata": {
           "key": "counts_to_adata",
-          "digest": "ttmdrhjmeoheqsvnznpcad4uy4kyvzy6",
+          "digest": "e7vjjqaxq23775fts2usb2ssaf75arnf",
           "tests": [
             {
               "inputs": {
@@ -519,7 +519,7 @@
         },
         "fragments_to_adata": {
           "key": "fragments_to_adata",
-          "digest": "ygaxje4pcgdlolevc6hxd7hnxu6pah6x",
+          "digest": "mqhbjl7cqhggmp3igskfimzws4jn46ca",
           "tests": [
             {
               "inputs": {
