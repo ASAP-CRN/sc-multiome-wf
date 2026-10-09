@@ -562,7 +562,7 @@ task cellranger_arc_count {
 
 		cellranger-arc --version
 
-		/usr/bin/time -v \
+		/usr/bin/time \
 		cellranger-arc count \
 			--id=~{sample_id} \
 			--reference="$(pwd)/cellranger_arc_refdata" \
@@ -791,7 +791,7 @@ task rna_demux_counts {
 			exit 1
 		fi
 
-		/usr/bin/time -v \
+		/usr/bin/time \
 		demux_cellbender_counts \
 			--cellbender-counts ~{cellbender_counts} \
 			--cell-barcodes cell_barcodes.tsv \
@@ -889,7 +889,7 @@ task counts_to_adata {
 	command <<<
 		set -euo pipefail
 
-		/usr/bin/time -v \
+		/usr/bin/time \
 		counts_to_adata \
 			--cellbender-counts ~{cellbender_counts} \
 			--team ~{team_id} \
@@ -982,7 +982,7 @@ task fragments_to_adata {
 	command <<<
 		set -euo pipefail
 
-		/usr/bin/time -v \
+		/usr/bin/time \
 		fragments_to_adata \
 			--cellranger-arc-fragments ~{fragments_tsv_gz} \
 			--team ~{team_id} \

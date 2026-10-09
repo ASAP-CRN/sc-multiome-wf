@@ -250,7 +250,7 @@ task joint_qc {
 	command <<<
 		set -euo pipefail
 
-		/usr/bin/time -v \
+		/usr/bin/time \
 		joint_qc \
 			--rna-adata-input ~{filtered_rna_adata_object} \
 			--atac-adata-input ~{filtered_atac_adata_object} \
@@ -316,7 +316,7 @@ task annotate_and_transfer {
 	command <<<
 		set -euo pipefail
 
-		/usr/bin/time -v \
+		/usr/bin/time \
 		annotate_and_transfer \
 			--mudata-input ~{multivi_clustered_mudata_object} \
 			--labeled-rna-input ~{labeled_cells_rna_adata_object} \
@@ -381,7 +381,7 @@ task parse_feature_linkage {
 	command <<<
 		set -euo pipefail
 
-		/usr/bin/time -v \
+		/usr/bin/time \
 		parse_feature_linkage \
 			--mudata-input ~{annotated_mudata_object} \
 			--bedpe-inputs ~{sep=" " cellranger_arc_feature_linkage_bedpe} \

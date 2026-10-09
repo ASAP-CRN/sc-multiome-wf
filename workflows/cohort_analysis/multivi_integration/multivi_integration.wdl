@@ -112,7 +112,7 @@ task integrate_multivi {
 
 		mkdir multivi_dir
 
-		/usr/bin/time -v \
+		/usr/bin/time \
 		integrate_multivi \
 			--mudata-input ~{filtered_mudata_object} \
 			--batch-key ~{batch_key} \
@@ -192,7 +192,7 @@ task cluster_multivi {
 	command <<<
 		set -euo pipefail
 
-		/usr/bin/time -v \
+		/usr/bin/time \
 		cluster_multivi \
 			--mudata-input ~{multivi_integrated_mudata_object} \
 			--latent-key ~{multivi_latent_key} \
