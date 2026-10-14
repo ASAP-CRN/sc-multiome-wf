@@ -60,13 +60,16 @@ An input template file can be found at [workflows/inputs.json](workflows/inputs.
 | :- | :- | :- | :- |
 | String | cohort_id | All | Name of the cohort; used to name output files during cross-team cohort analysis. |
 | Array[[Project](#project)] | projects | All | The project ID, set of samples and their associated reads and metadata, output bucket locations, and whether or not to run project-level cohort analysis. |
+| File? | kamath_post_qc_adata_object | sc RNA-seq | Downsampled and QC-filtered Kamath et al. 2022 AnnData object; its dopaminergic neurons are spiked into the cohort's MMC-labeled RNA AnnData object before scVI/scANVI so scANVI can learn DA subtype labels. Used by sc RNA-seq cohort analysis only; human only. If not provided, no Kamath cells are spiked in. |
+| File? | siletti_post_qc_adata_object | sc RNA-seq | Downsampled and QC-filtered Siletti et al. 2023 midbrain AnnData object; its cells are spiked in unlabeled, with Allen ground truth labels kept to benchmark scANVI predictions (per-label F1). Used by sc RNA-seq cohort analysis only; human only, and only meaningful when mmc_taxonomy is 'Siletti'. If not provided, no Siletti cells are spiked in. |
 | File | cellranger_arc_reference_data | sc Multiome | Cell Ranger ARC reference data; see https://www.10xgenomics.com/support/software/cell-ranger-arc/downloads. |
 | File | cellranger_atac_reference_chrom_sizes | sc ATAC-seq | Chromosome sizes file (.chrom.sizes or .fa.fai) from the Cell Ranger ARC reference, used to validate fragment coordinates when splitting fragments by donor; see [Generating chromosome sizes file](#demultiplexing). |
 | Float? | cellbender_fpr | sc RNA-seq | Cellbender false positive rate for signal removal. [0.0] |
 | Array[File]? | vireo_assignment_files | sc RNA-seq, sc ATAC-seq | Vireo donor assignment CSVs with columns: donor_id, sample (pool), raw_bc. Required for multiplexed pools; must cover all donors in each pool. |
+| Int? | n_cells | sc RNA-seq | Number of cells to keep. Cells are drawn uniformly at random without replacement for downsampling. Default is to keep all cells. |
 | Int? | pct_counts_mt_max | sc RNA-seq | Maximum percentage of mitochondrial gene counts allowed per cell. [10] |
 | Float? | doublet_score_max | sc RNA-seq | Maximum doublet detection score threshold. [0.2] |
-| Array[Int]? | total_counts_limits | sc RNA-seq | Absolute minimum and maximum total UMI (unique molecular identifier) counts per cell; applied on top of the MAD-based thresholds. [500, 100000] |
+| Array[Int]? | total_counts_limits | sc RNA-seq | Absolute minimum and maximum total UMI (unique molecular identifier) counts per cell; applied on top of the MAD-based thresholds. [500, 150000] |
 | Array[Int]? | n_genes_by_counts_limits | sc RNA-seq | Absolute minimum and maximum number of genes detected per cell (genes with at least one count); applied on top of the MAD-based thresholds. [300, 15000] |
 | Float? | n_mads_lower | sc RNA-seq | Number of median absolute deviations below the per-sample median allowed for total UMI counts and number of genes detected per cell. [3] |
 | Float? | n_mads_upper | sc RNA-seq | Number of median absolute deviations above the per-sample median allowed for total UMI counts and number of genes detected per cell. [5] |
@@ -81,7 +84,7 @@ An input template file can be found at [workflows/inputs.json](workflows/inputs.
 | String? | scanvi_predictions_key | sc RNA-seq, sc Multiome | scANVI cell type predictions column name. ['C_scANVI'] |
 | Int? | n_neighbors | sc RNA-seq, sc Multiome | The size of local neighborhood (in terms of number of neighboring data points) used for manifold approximation; used for RNA and MultiVI clustering. [15] |
 | Array[Float]? | leiden_res | sc RNA-seq, sc Multiome | Leiden resolutions which are the parameter values controlling the coarseness of the clustering; used for RNA and MultiVI clustering. [0.2, 0.5, 1.0] |
-| Array[String]? | rna_groups | sc RNA-seq | RNA groups to produce umap plots for. ['sample', 'batch', 'cell_type', 'leiden_res_0.20', 'leiden_res_0.50', 'leiden_res_1.0'] |
+| Array[String]? | rna_groups | sc RNA-seq | RNA groups to produce umap plots for. ['sample', 'batch_id', 'cell_type', 'leiden_res_0.20', 'leiden_res_0.50', 'leiden_res_1.0'] |
 | Array[String]? | rna_features | sc RNA-seq | RNA features to produce umap plots for. ['n_genes_by_counts', 'total_counts', 'pct_counts_mt', 'pct_counts_rb', 'doublet_score', 'S_score', 'G2M_score'] |
 | String? | peakvi_latent_key | sc ATAC-seq | Latent key to save the PeakVI latent to. ['X_peakVI'] |
 | Int? | peakvi_max_epochs | sc ATAC-seq | The maximum number of full passes through the training data during PeakVI model training. If the model converges early, training will halt before this limit is reached. [300] |
@@ -356,13 +359,13 @@ The script defaults to a dry run, printing out the files that would be copied or
 
 ```bash
 # List available teams
-./wf-common/util/promote_staging_data -l -w pmdbs_sc_multiome -v v6.0.0
+./wf-common/util/data_promotion/promote_staging_data -l -w pmdbs_sc_multiome -v v6.0.0
 
 # Print out the files that would be copied or deleted from the staging bucket to the curated bucket for teams' datasets processed through the sc multiome pipeline for a specific release version
-./wf-common/util/promote_staging_data -w pmdbs_sc_multiome -v v6.0.0
+./wf-common/util/data_promotion/promote_staging_data -w pmdbs_sc_multiome -v v6.0.0
 
 # Promote data for teams' datasets processed through the sc multiome pipeline for a specific release version
-./wf-common/util/promote_staging_data -w pmdbs_sc_multiome -v v6.0.0 -p
+./wf-common/util/data_promotion/promote_staging_data -w pmdbs_sc_multiome -v v6.0.0 -p
 ```
 
 # Docker images

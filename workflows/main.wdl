@@ -14,6 +14,9 @@ workflow sc_multiome_analysis {
 		String cohort_id
 		Array[Project] projects
 
+		File? kamath_post_qc_adata_object
+		File? siletti_post_qc_adata_object
+
 		# Preprocess
 		File cellranger_arc_reference_data
 		File cellranger_atac_reference_chrom_sizes
@@ -21,9 +24,10 @@ workflow sc_multiome_analysis {
 		Array[File]? vireo_assignment_files
 
 		# Filtering parameters
+		Int? n_cells
 		Int pct_counts_mt_max = 10
 		Float doublet_score_max = 0.2
-		Array[Int] total_counts_limits = [500, 100000]
+		Array[Int] total_counts_limits = [500, 150000]
 		Array[Int] n_genes_by_counts_limits = [300, 15000]
 		Float n_mads_lower = 3
 		Float n_mads_upper = 5
@@ -48,7 +52,7 @@ workflow sc_multiome_analysis {
 		Array[Float] leiden_res = [0.2, 0.5, 1.0]
 
 		# RNA - Groups and features
-		Array[String] rna_groups = ["sample", "batch", "cell_type", "leiden_res_0.20", "leiden_res_0.50", "leiden_res_1.0"]
+		Array[String] rna_groups = ["sample", "batch_id", "cell_type", "leiden_res_0.20", "leiden_res_0.50", "leiden_res_1.0"]
 		Array[String] rna_features = ["n_genes_by_counts", "total_counts", "pct_counts_mt", "pct_counts_rb", "doublet_score", "S_score", "G2M_score"]
 
 		# ATAC - Sample integration
@@ -164,6 +168,9 @@ workflow sc_multiome_analysis {
 					project_sample_ids = preprocess.project_sample_ids,
 					preprocessed_adata_objects = flatten([preprocess.rna_initial_demux_adata_object, preprocess.rna_initial_adata_object]),
 					preprocessing_output_file_paths = rna_preprocessing_output_file_paths,
+					kamath_post_qc_adata_object = kamath_post_qc_adata_object,
+					siletti_post_qc_adata_object = siletti_post_qc_adata_object,
+					n_cells = n_cells,
 					pct_counts_mt_max = pct_counts_mt_max,
 					doublet_score_max = doublet_score_max,
 					total_counts_limits = total_counts_limits,
@@ -272,6 +279,9 @@ workflow sc_multiome_analysis {
 				project_sample_ids = flatten(preprocess.project_sample_ids),
 				preprocessed_adata_objects = flatten(flatten([preprocess.rna_initial_demux_adata_object, preprocess.rna_initial_adata_object])),
 				preprocessing_output_file_paths = flatten(rna_preprocessing_output_file_paths),
+				kamath_post_qc_adata_object = kamath_post_qc_adata_object,
+				siletti_post_qc_adata_object = siletti_post_qc_adata_object,
+				n_cells = n_cells,
 				pct_counts_mt_max = pct_counts_mt_max,
 				doublet_score_max = doublet_score_max,
 				total_counts_limits = total_counts_limits,
@@ -654,13 +664,16 @@ workflow sc_multiome_analysis {
 	parameter_meta {
 		cohort_id: {help: "Name of the cohort; used to name output files during cross-team cohort analysis."}
 		projects: {help: "The project ID, set of samples and their associated reads and metadata, output bucket locations, sc data type, and whether or not to run project-level cohort analysis."}
+		kamath_post_qc_adata_object: {help: "Downsampled and QC-filtered Kamath et al. 2022 AnnData object; its dopaminergic neurons are spiked into the cohort's MMC-labeled RNA AnnData object before scVI/scANVI so scANVI can learn DA subtype labels. Used by sc RNA-seq cohort analysis only; human only. If not provided, no Kamath cells are spiked in."}
+		siletti_post_qc_adata_object: {help: "Downsampled and QC-filtered Siletti et al. 2023 midbrain AnnData object; its cells are spiked in unlabeled, with Allen ground truth labels kept to benchmark scANVI predictions (per-label F1). Used by sc RNA-seq cohort analysis only; human only, and only meaningful when mmc_taxonomy is 'Siletti'. If not provided, no Siletti cells are spiked in."}
 		cellranger_arc_reference_data: {help: "CellRanger ARC reference data; see https://www.10xgenomics.com/support/software/cell-ranger-arc/downloads."}
 		cellranger_atac_reference_chrom_sizes: {help: "Chromosome sizes file (.chrom.sizes or .fa.fai) from the Cell Ranger ATAC reference (same as ARC), used to validate fragment coordinates during splitting."}
 		cellbender_fpr: {help: "Cellbender false positive rate. [0.0]"}
 		vireo_assignment_files: {help: "Vireo donor assignment CSV with columns: donor_id, sample, raw_bc. Covers all donors in the pool."}
+		n_cells: {help: "Number of cells to keep. Cells are drawn uniformly at random without replacement for downsampling. Default is to keep all cells."}
 		pct_counts_mt_max: {help: "Maximum percentage of mitochondrial gene counts allowed per cell. [10]"}
 		doublet_score_max: {help: "Maximum doublet detection score threshold. [0.2]"}
-		total_counts_limits: {help: "Minimum and maximum total UMI (unique molecular identifier) counts per cell. [500, 100000]"}
+		total_counts_limits: {help: "Minimum and maximum total UMI (unique molecular identifier) counts per cell. [500, 150000]"}
 		n_genes_by_counts_limits: {help: "Minimum and maximum number of genes detected per cell (genes with at least one count). [300, 15000]"}
 		n_mads_lower: {help: "Number of median absolute deviations below the per-sample median allowed for total UMI counts and number of genes detected per cell. [3]"}
 		n_mads_upper: {help: "Number of median absolute deviations above the per-sample median allowed for total UMI counts and number of genes detected per cell. [5]"}
@@ -675,7 +688,7 @@ workflow sc_multiome_analysis {
 		batch_key: {help: "Key in MuData object for batch information. ['batch_id']"}
 		n_neighbors: {help: "The size of local neighborhood (in terms of number of neighboring data points) used for manifold approximation. [15]"}
 		leiden_res: {help: "Leiden resolutions which are the parameter values controlling the coarseness of the clustering. [0.2, 0.5, 1.0]"}
-		rna_groups: {help: "RNA groups to produce umap plots for. ['sample', 'batch', 'cell_type', 'leiden_res_0.20', 'leiden_res_0.50', 'leiden_res_1.0']"}
+		rna_groups: {help: "RNA groups to produce umap plots for. ['sample', 'batch_id', 'cell_type', 'leiden_res_0.20', 'leiden_res_0.50', 'leiden_res_1.0']"}
 		rna_features: {help: "RNA features to produce umap plots for. ['n_genes_by_counts', 'total_counts', 'pct_counts_mt', 'pct_counts_rb', 'doublet_score', 'S_score', 'G2M_score']"}
 		peakvi_latent_key: {help: "Latent key to save the peakVI latent to. ['X_peakVI']"}
 		peakvi_max_epochs: {help: "The maximum number of full passes through the training data during PeakVI model training. If the model converges early, training will halt before this limit is reached. [300]"}

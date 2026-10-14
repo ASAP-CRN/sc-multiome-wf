@@ -500,6 +500,7 @@ task check_output_files_exist {
 
 	parameter_meta {
 		output_files: {help: "Output file to detect."}
+		billing_project: {help: "Billing project to charge GCP costs."}
 		zones: {help: "Space-delimited set of GCP zones to spin up compute in. ['us-central1-c us-central1-f']"}
 	}
 }

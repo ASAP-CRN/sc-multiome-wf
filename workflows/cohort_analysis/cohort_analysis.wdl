@@ -201,6 +201,7 @@ workflow cohort_analysis {
 		filtered_rna_adata_object: {help: "Cohort-level filtered RNA AnnData ({cohort}.filtered.h5ad from the RNA `filter` task)"}
 		filtered_atac_adata_object: {help: "Cohort-level filtered ATAC AnnData ({cohort}.merged_filtered.h5ad from the ATAC `merge_and_qc` task)"}
 		per_barcode_metrics_csvs: {help: "Per-sample Cell Ranger ARC per_barcode_metrics.csv files, one per ARC run, from preprocess; cells are restricted to barcodes ARC called (is_cell == 1) before pairing the modalities."}
+		cellranger_arc_feature_linkage_bedpe: {help: "Per-sample Cell Ranger ARC feature_linkage.bedpe files, one per sample, from preprocess."}
 		labeled_cells_rna_adata_object: {help: "RNA pipeline labeled AnnData (labeled cells AnnData object from sc-rnaseq-wf) holding the label column."}
 		min_overlap_frac: {help: "Minimum fraction of the smaller modality that must be shared; below this the run fails as a likely barcode-key mismatch [0.5]"}
 		batch_key: {help: "Key in MuData object for batch information. ['batch_id']"}
