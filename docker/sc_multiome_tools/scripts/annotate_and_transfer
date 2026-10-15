@@ -3,21 +3,26 @@
 import argparse
 import anndata
 import pandas as pd
-import scanpy as sc
 import mudata as md
 import hdf5plugin
 
 
 UNKNOWN_LABEL = "Unknown"
+MULTIOME_CELL_TYPE_KEY = "multiome_cell_type"
 
 
-def harvest_labels(labeled_rna: sc.AnnData, label_key: str):
-    if label_key not in labeled_rna.obs:
+def harvest_labels(mdata: md.MuData, label_key: str):
+    """
+    The label column from the RNA modality, which joint_qc built from the
+    scANVI-labeled RNA object.
+    """
+    rna = mdata.mod["rna"]
+    if label_key not in rna.obs:
         raise ValueError(
-            f"'{label_key}' not found in the labeled RNA object's obs. "
-            f"Available: {list(labeled_rna.obs.columns)}."
+            f"'{label_key}' not found in the RNA modality's obs. "
+            f"Available: {list(rna.obs.columns)}."
         )
-    labels = labeled_rna.obs[label_key].astype(str)
+    labels = rna.obs[label_key].astype(str)
     print(f"Harvested {labels.nunique()} distinct '{label_key}' labels "
           f"from {len(labels)} RNA cells")
     return labels
@@ -41,15 +46,17 @@ def plain_string_index(mdata):
 
 def transfer_labels(mdata: md.MuData, labels):
     """
-    Attach RNA-derived labels to the shared observation axis and the ATAC
-    modality by barcode. Paired cells missing a label in the RNA object (rare;
-    barcode-format edge cases) are KEPT and marked 'Unknown' rather than dropped.
+    Attach the RNA-derived labels as multiome_cell_type on the shared
+    observation axis and both modalities. The RNA modality's MapMyCells
+    cell_type is left as it is. Paired cells without a label are KEPT and
+    marked 'Unknown' rather than dropped.
     """
     rna = mdata.mod["rna"]
     atac = mdata.mod["atac"]
 
     # Reindex the harvested labels onto the paired barcode set
     joint = labels.reindex(mdata.obs_names)
+    joint = joint.where(joint != "nan")
     n_total = mdata.n_obs
     n_missing = int(joint.isna().sum())
     joint = joint.fillna(UNKNOWN_LABEL)
@@ -58,19 +65,18 @@ def transfer_labels(mdata: md.MuData, labels):
     print(f"Coverage: {n_total - n_missing}/{n_total} paired cells labeled "
           f"({frac_missing:.1%} marked '{UNKNOWN_LABEL}')")
     if frac_missing > 0.5:
-        # Not fatal, but almost always a barcode-format mismatch rather than
-        # genuine label absence -- warn loudly.
+        # Not fatal, but the label column is mostly missing on the RNA side --
+        # warn loudly.
         print(f"WARNING: over half of paired cells got '{UNKNOWN_LABEL}'. "
-              f"Check barcode formatting (the '-1' suffix, gex vs atac barcode) "
-              f"between the MuData and the labeled RNA object.")
+              f"Check that the RNA modality carries the scANVI label column.")
 
     joint = joint.astype("category")
 
-    mdata.obs["cell_type"] = joint.values
-    atac.obs["cell_type"] = joint.reindex(atac.obs_names).values
-    rna.obs["cell_type"] = joint.reindex(rna.obs_names).values
+    mdata.obs[MULTIOME_CELL_TYPE_KEY] = joint.values
+    atac.obs[MULTIOME_CELL_TYPE_KEY] = joint.reindex(atac.obs_names).values
+    rna.obs[MULTIOME_CELL_TYPE_KEY] = joint.reindex(rna.obs_names).values
 
-    print(mdata.obs["cell_type"].value_counts().to_string())
+    print(mdata.obs[MULTIOME_CELL_TYPE_KEY].value_counts().to_string())
     return mdata
 
 
@@ -80,30 +86,21 @@ def main(args):
     anndata.settings.allow_write_nullable_strings = False
 
     mdata = md.read_h5mu(args.mudata_input)
-    labeled_rna = sc.read_h5ad(args.labeled_rna_input)
 
-    labels = harvest_labels(labeled_rna, args.label_key)
+    labels = harvest_labels(mdata, args.label_key)
     mdata = transfer_labels(mdata, labels)
     mdata = plain_string_index(mdata)
 
     mdata.write(
         filename=args.mudata_output,
-        compression="gzip"
+        compression="lzf"
     )
     print(f"Wrote {args.mudata_output}")
-
-    atac = mdata.mod["atac"].copy()
-    atac.obs["cell_type"] = mdata.obs["cell_type"].reindex(atac.obs_names).values
-    atac.write(
-        filename=args.atac_adata_output,
-        compression="gzip"
-    )
-    print(f"Wrote {args.atac_adata_output}")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Transfer RNA-derived cell-type labels onto the paired Multiome MuData by barcode"
+        description="Set the paired Multiome MuData's multiome_cell_type from the RNA modality's scANVI labels"
     )
     parser.add_argument(
         "-a",
@@ -113,18 +110,11 @@ if __name__ == "__main__":
         help="MuData (.h5mu) object for a dataset",
     )
     parser.add_argument(
-        "-r",
-        "--labeled-rna-input",
-        type=str,
-        required=True,
-        help="RNA pipeline labeled AnnData (labeled cells AnnData object from sc-rnaseq-wf) holding the label column",
-    )
-    parser.add_argument(
         "-k",
         "--label-key",
         type=str,
         default="C_scANVI",
-        help="obs column carrying the cell-type label to harvest and transfer [C_scANVI]",
+        help="RNA modality obs column carrying the cell-type label to copy to multiome_cell_type [C_scANVI]",
     )
     parser.add_argument(
         "-o",
@@ -132,13 +122,6 @@ if __name__ == "__main__":
         type=str,
         required=True,
         help="Output file name for saving the annotated MuData object",
-    )
-    parser.add_argument(
-        "-t",
-        "--atac-adata-output",
-        type=str,
-        required=True,
-        help="Output file name for saving the ATAC AnnData object",
     )
 
     args = parser.parse_args()

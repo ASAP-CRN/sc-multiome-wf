@@ -12,8 +12,8 @@
             {
               "inputs": {
                 "cohort_id": "${cohort_id}",
-                "filtered_rna_adata_object": "${input_resources_file_path}/${cohort_id}.merged_filtered.h5ad",
-                "filtered_atac_adata_object": "${input_resources_file_path}/${cohort_id}.filtered.h5ad",
+                "labeled_cells_rna_adata_object": "${input_resources_file_path}/${cohort_id}.scanvi_labeled.h5ad",
+                "atac_peaks_matrix_adata_object": "${input_resources_file_path}/${cohort_id}.harmony.leiden.peaks_matrix.h5ad",
                 "per_barcode_metrics_csvs": [
                   "${input_resources_file_path}/${preprocess_workflow_name}/multiome/${dataset_sample_id}.per_barcode_metrics.csv"
                 ],
@@ -44,7 +44,6 @@
               "inputs": {
                 "cohort_id": "${cohort_id}",
                 "multivi_clustered_mudata_object": "${input_resources_file_path}/${cohort_workflow_name}/multiome/${cohort_id}.multivi_clustered.h5mu",
-                "labeled_cells_rna_adata_object": "${input_resources_file_path}/${cohort_id}.scanvi_labeled.h5ad",
                 "scanvi_predictions_key": "C_scANVI",
                 "container_registry": "${container_registry}",
                 "zones": "${zones}"
@@ -52,13 +51,6 @@
               "output_tests": {
                 "annotated_mudata_object": {
                   "value": "${input_resources_file_path}/${cohort_workflow_name}/multiome/${cohort_id}.annotated.h5mu",
-                  "test_tasks": [
-                    "compare_file_basename",
-                    "check_hdf5"
-                  ]
-                },
-                "atac_annotated_adata_object": {
-                  "value": "${input_resources_file_path}/${cohort_workflow_name}/multiome/${cohort_id}.atac_annotated.h5ad",
                   "test_tasks": [
                     "compare_file_basename",
                     "check_hdf5"

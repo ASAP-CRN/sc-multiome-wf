@@ -7,11 +7,114 @@ Common workflows, tasks, utility scripts, and docker images reused across harmon
 
 # Table of contents
 
+- [User guide](#user-guide)
 - [Workflows](#workflows)
 - [Inputs](#inputs)
 - [Outputs](#outputs)
     - [Output structure](#output-structure)
 - [Docker images](#docker-images)
+
+
+# User guide
+
+## What this analysis is for
+
+This workflow gives a **harmonized first pass** over all ASAP sc/sn multiome (paired gene expression and chromatin accessibility) samples. It is meant to help you decide **whether a meta-analysis is worth running, and how**. It is not the final analysis of any dataset. Treat the cell type labels and feature linkages in particular as a starting point:
+
+- **Three analyses run on the same cells.** The RNA and ATAC data are first analyzed separately by the [sc-rnaseq-wf](https://github.com/ASAP-CRN/sc-rnaseq-wf) and [sc-atacseq-wf](https://github.com/ASAP-CRN/sc-atacseq-wf) cohort analyses, with the same outputs those workflows produce (`cohort_analysis/rna` and `cohort_analysis/atac`). The multiome analysis (`cohort_analysis/multiome`) then pairs the cells that pass QC in both modalities and integrates them jointly with MultiVI. See those workflows' user guides for the RNA- and ATAC-only outputs.
+- **Only cells that pass both modalities are paired.** A cell is kept in the multiome object only if Cell Ranger ARC called it a cell (`is_cell == 1`), it passed the RNA QC filters, and it passed the ATAC QC filters. Cells are matched on barcode and sample. If fewer than `min_overlap_frac` (default 50%) of the smaller modality's cells are shared, the run fails, because that usually means a barcode mismatch rather than real biology.
+- **Cell types come from RNA.** `multiome_cell_type` in the multiome object is the RNA workflow's scANVI prediction (`C_scANVI`), transferred to the paired cells by barcode. It is not re-derived from the joint embedding, and it is more reliable than the ATAC workflow's gene-activity-based labels. Paired cells with no RNA label are kept and marked `Unknown`. For multiome data, use `multiome_cell_type`, not the gene-activity-based `cell_type` in the ATAC outputs (`cohort_analysis/atac`); to call peaks or run motif enrichment by RNA cell type, start from `mod["atac"]` of the multiome `final.h5mu`. If the Kamath et al. 2022 DA neurons were spiked into the RNA analysis (`kamath_post_qc_adata_object`), dopaminergic cells carry Kamath DA subtype labels (e.g. `SOX6_AGTR1`) instead of `Dopaminergic`. The workflow is human (hg38) only.
+- **Feature linkages are per sample.** Peak-gene linkages are the ones Cell Ranger ARC computes for each ARC run, using that run's own peak calls. Peak names are therefore not comparable across samples, and the linkages are stacked rather than merged into a consensus.
+- **Check before you build on it.** Use the outputs to answer:
+    - What fraction of each modality's cells were paired, and is it similar across samples and teams (`final_metadata.csv`)?
+    - Do cells group by cell type rather than by sample, pool or team in the MultiVI UMAP (`multivi_umap.png`)?
+    - Do the MultiVI Leiden clusters agree with the RNA-derived `multiome_cell_type`?
+    - Are the cell types you care about present in enough samples and paired cells to compare groups?
+
+If the answers look good, a meta-analysis across datasets is likely reasonable. If not, consider re-running with a subset of samples, or analyzing datasets separately.
+
+## Parameters and versions used in a run
+
+Every run records:
+
+- **Workflow version and release:** the `MANIFEST.tsv` in each staging directory lists, for every file, its md5, timestamp, workflow name, workflow version and GitHub release.
+- **Samples:** `${cohort_id}.sample_list.tsv` lists the samples included in the cohort analysis.
+- **Inputs and parameters:** the inputs JSON submitted for the run. Defaults are listed in [Inputs](#inputs).
+- **Tool versions:** fixed by the Docker image tags used by that workflow release; see [Tool and library versions](#tool-and-library-versions).
+
+RNA and ATAC QC filters are those of the sc-rnaseq-wf and sc-atacseq-wf cohort analyses. Default multiome settings:
+
+| Filter or setting | Default |
+| :- | :- |
+| Cells | Called by Cell Ranger ARC (`is_cell == 1`) and passing both RNA and ATAC QC |
+| Minimum shared fraction of the smaller modality (`min_overlap_frac`) | 0.5; below this the run fails |
+| MultiVI features | RNA: the HVGs plus Kamath DA marker genes from the RNA workflow (raw counts from `layers["counts"]`); ATAC: all peaks in the ATAC workflow's Harmony Leiden peak matrix |
+| MultiVI batch key (`batch_key`) | `batch_id` (team, dataset and pool) |
+| MultiVI training | `multivi_max_epochs` 300, `multivi_n_hidden` 128, `multivi_batch_size` 128 |
+| Leiden clustering | `n_neighbors` 15; resolutions 0.2, 0.5 and 1.0 |
+| Cell type label (`multiome_cell_type`) | RNA `C_scANVI` (`scanvi_predictions_key`); `Unknown` when the cell has no RNA label |
+| Feature linkages | Peak-gene only (`peak_gene_only`); \|correlation\| ≥ 0.1 (`min_linkage_corr`); significance ≥ 0.0 (`min_linkage_sig`) |
+
+## Working with the outputs
+
+The main output is `${cohort_id}.final.h5mu`, a [MuData](https://mudata.readthedocs.io/) object with the paired cells in two modalities, `rna` and `atac`. Useful contents:
+
+| Location | Contents |
+| :- | :- |
+| `mod["rna"]` | The paired cells from the RNA workflow's scANVI-labeled object (`${cohort_id}.scanvi_labeled.h5ad`; HVGs plus DA markers, log1p-normalized `X`, raw counts in `layers["counts"]`, `obsm["X_scVI"]`, `obsm["X_scANVI"]`); see sc-rnaseq-wf for its `obs` columns. Its `obs["cell_type"]` is the RNA workflow's MapMyCells call after the confidence filter (the call before the filter is in `obs["phenotype"]`) |
+| `mod["atac"]` | The paired cells from the ATAC workflow's Harmony Leiden cell-by-peak count matrix (`${cohort_id}.harmony.leiden.peaks_matrix.h5ad`); see sc-atacseq-wf for its `obs` columns |
+| `obs["multiome_cell_type"]` | RNA-derived cell type, copied from `mod["rna"].obs["C_scANVI"]` (also set in `mod["rna"].obs` and `mod["atac"].obs`) |
+| `obs["leiden_multivi_0.20"]`, `obs["leiden_multivi_0.50"]`, `obs["leiden_multivi_1.00"]` | Leiden clusters on the MultiVI latent space |
+| `obsm["X_multiVI"]`, `obsm["X_umap"]` | Joint MultiVI latent space, and UMAP computed from it |
+| `uns["feature_linkage_per_sample"]` | The stacked feature linkage table (same as the CSV below) |
+
+The obs names are the RNA workflow's cell IDs, so cells can be matched directly to the RNA cohort outputs.
+
+Other outputs you will likely want:
+
+| File | Contents |
+| :- | :- |
+| `${cohort_id}.final_metadata.csv` | One row per paired cell: shared sample metadata (`dataset`, `sample`, `pool`, `subject`, `batch`, `batch_id`, `sex`, `team`), `multiome_cell_type`, the Leiden clusters, and every other RNA and ATAC `obs` column prefixed `rna:` or `atac:` (e.g. `rna:cell_type` for the MapMyCells call, `rna:C_scANVI`) |
+| `${cohort_id}.feature_linkage_per_sample.csv` | One row per linkage per sample: `peak`, `gene`, `score` (correlation), `significance`, `distance` (bp), `linkage_type` and `sample_id`, plus the original BEDPE columns |
+| `${cohort_id}.multivi_model.tar.gz` | The trained MultiVI model; extract it and load it with `scvi.model.MULTIVI.load` on the matching MuData to get latent representations or normalized expression |
+| `${cohort_id}.filtered.h5mu` | The paired object before integration, if you want to run your own joint model |
+| `preprocess/multiome/${dataset_id}.${pool_id}.*` | Per-run Cell Ranger ARC outputs (count matrices, BAMs, fragments, ARC peak calls and feature linkages) |
+
+The `.h5mu` files are written with LZF compression; they open with `mudata`/`anndata` (Python) as usual, but other HDF5 readers (e.g. R) need the HDF5 LZF filter plugin.
+
+```python
+import mudata as md
+import scanpy as sc
+
+mdata = md.read_h5mu("cohort.final.h5mu")
+mdata.obs["multiome_cell_type"].value_counts()
+sc.pl.umap(mdata, color=["multiome_cell_type", "leiden_multivi_0.50"])
+
+# RNA modality; raw counts are in layers["counts"], X is log1p-normalized
+rna = mdata.mod["rna"]
+
+# Peak-gene linkages for one gene, across samples
+links = mdata.uns["feature_linkage_per_sample"]
+links[links["gene"] == "TH"].groupby("sample_id")["score"].describe()
+```
+
+### Example notebooks
+
+Example notebooks on the Verily Workbench (VWB) walk through loading the outputs, checking QC and integration, and comparing cell types across datasets:
+
+- https://github.com/ASAP-CRN/asap-crn-learning-lab
+
+## Running your own analysis
+
+If you process the data yourself instead of (or after) using this workflow, consider:
+
+- **Start from the sample-level outputs.** Cell Ranger ARC and demultiplexing are the most expensive steps per pool. The per-sample RNA (`preprocess/rna`) and ATAC (`preprocess/atac`) AnnData objects in the curated buckets are already demultiplexed (Vireo) and have not had the cohort QC filters applied, so you can apply your own QC before pairing.
+- **Pair cells on barcode and sample.** Barcodes repeat across ARC runs, so always match RNA and ATAC cells on both the barcode and the sample. RNA and ATAC barcodes carry different suffixes; strip them first.
+- **Use raw counts for models.** MultiVI, scVI and differential tests expect raw counts.
+- **Choose the batch key carefully.** This workflow integrates on `batch_id` (team, dataset and pool). Integrating on a variable confounded with biology (e.g. disease status or brain region) removes real signal.
+- **Annotate on RNA.** Paired RNA gives more reliable cell type calls than gene activity. Annotate on RNA and transfer labels to ATAC by barcode, as this workflow does.
+- **Re-compute linkages across samples if you need them.** ARC linkages are per run and use per-run peaks. To compare linkages across samples, call a shared peak set (e.g. the ATAC workflow's cell type peaks) and recompute peak-gene correlations on the paired cells.
+- **Plan for scale.** MultiVI trains on all paired cells and needs a GPU; memory scales with the number of cells, genes and peaks.
 
 
 # Workflows
@@ -48,9 +151,9 @@ Run once per team (all samples from a single team) if `project.run_project_cohor
 
 1. **scRNA-seq cohort analysis**: The [sc-rnaseq-wf cohort analysis](https://github.com/ASAP-CRN/sc-rnaseq-wf) is run on the RNA AnnData objects (QC, filtering, MapMyCells cell type assignment, normalization, scVI/scANVI integration, and clustering).
 2. **scATAC-seq cohort analysis**: The [sc-atacseq-wf cohort analysis](https://github.com/ASAP-CRN/sc-atacseq-wf) is run on the ATAC AnnData objects (QC, Harmony and PeakVI integration, peak calling, and motif enrichment).
-3. **Joint QC**: Filtered RNA and ATAC barcodes are intersected into a paired multiome MuData object. The run fails if the fraction of shared barcodes is below `min_overlap_frac`, as this likely indicates a barcode key mismatch.
+3. **Joint QC**: Cells from the RNA workflow's scANVI-labeled object (spike-in cells dropped) and the ATAC workflow's Harmony Leiden peak matrix are restricted to Cell Ranger ARC-called cells and intersected by barcode and sample into a paired multiome MuData object. The run fails if the fraction of shared barcodes is below `min_overlap_frac`, as this likely indicates a barcode key mismatch.
 4. **MultiVI integration**: A MultiVI model is trained on the paired data to learn a joint, batch-corrected latent representation, which is then clustered with Leiden.
-5. **Annotate data**: RNA-derived cell type labels are transferred onto the MuData object by barcode (paired cells absent from the labeled RNA object are marked 'Unknown'), and per-sample Cell Ranger ARC peak-gene feature linkages are added.
+5. **Annotate data**: `multiome_cell_type` is set from the RNA modality's scANVI predictions (`scanvi_predictions_key`) on the shared obs and both modalities (paired cells without a label are marked 'Unknown'; the RNA modality's MapMyCells `cell_type` is left as it is), and per-sample Cell Ranger ARC peak-gene feature linkages are added.
 
 # Inputs
 
@@ -81,7 +184,7 @@ An input template file can be found at [workflows/inputs.json](workflows/inputs.
 | String? | batch_key | sc RNA-seq, sc ATAC-seq, sc Multiome | Key in AnnData/MuData object for batch information. ['batch_id'] |
 | String? | scvi_latent_key | sc RNA-seq | Latent key to save the scVI latent to. ['X_scVI'] |
 | String? | scanvi_latent_key | sc RNA-seq | Latent key to save the scANVI latent to. ['X_scANVI'] |
-| String? | scanvi_predictions_key | sc RNA-seq, sc Multiome | scANVI cell type predictions column name. ['C_scANVI'] |
+| String? | scanvi_predictions_key | sc RNA-seq, sc Multiome | scANVI cell type predictions column name; in multiome cohort analysis, copied from the RNA modality to `multiome_cell_type`. ['C_scANVI'] |
 | Int? | n_neighbors | sc RNA-seq, sc Multiome | The size of local neighborhood (in terms of number of neighboring data points) used for manifold approximation; used for RNA and MultiVI clustering. [15] |
 | Array[Float]? | leiden_res | sc RNA-seq, sc Multiome | Leiden resolutions which are the parameter values controlling the coarseness of the clustering; used for RNA and MultiVI clustering. [0.2, 0.5, 1.0] |
 | Array[String]? | rna_groups | sc RNA-seq | RNA groups to produce umap plots for. ['sample', 'batch_id', 'cell_type', 'leiden_res_0.20', 'leiden_res_0.50', 'leiden_res_1.0'] |
@@ -92,7 +195,7 @@ An input template file can be found at [workflows/inputs.json](workflows/inputs.
 | Int? | peakvi_batch_size | sc ATAC-seq | Training batch size for PeakVI. [128] |
 | Array[String]? | atac_groups | sc ATAC-seq | ATAC groups to produce umap plots for. ['sample', 'batch', 'team', 'dataset', 'batch_id', 'leiden'] |
 | Array[String]? | atac_features | sc ATAC-seq | ATAC features to produce umap plots for. ['n_fragment', 'tsse', 'frac_dup', 'frac_mito', 'doublet_score', 'doublet_probability'] |
-| Float? | min_overlap_frac | sc Multiome | Minimum fraction of the smaller modality's barcodes that must be shared between the filtered RNA and ATAC objects in joint QC; below this the run fails as a likely barcode key mismatch. [0.5] |
+| Float? | min_overlap_frac | sc Multiome | Minimum fraction of the smaller modality's barcodes that must be shared between the RNA and ATAC objects in joint QC; below this the run fails as a likely barcode key mismatch. [0.5] |
 | String? | multivi_latent_key | sc Multiome | Latent key to save the MultiVI latent to. ['X_multiVI'] |
 | Int? | multivi_max_epochs | sc Multiome | The maximum number of full passes through the training data during MultiVI model training. If the model converges early, training will halt before this limit is reached. [300] |
 | Int? | multivi_n_hidden | sc Multiome | Number of nodes per hidden layer for MultiVI. [128] |

@@ -240,9 +240,8 @@ workflow sc_multiome_analysis {
 					preprocessing_output_file_paths = multiome_preprocessing_output_file_paths,
 					cellranger_arc_feature_linkage_bedpe = preprocess.feature_linkage_bedpe,
 					per_barcode_metrics_csvs = preprocess.per_barcode_metrics_summary_csv,
-					filtered_rna_adata_object = rna_project_cohort_analysis.filtered_adata_object,
-					filtered_atac_adata_object = atac_project_cohort_analysis.merged_adata_object,
 					labeled_cells_rna_adata_object = rna_project_cohort_analysis.labeled_cells_adata_object,
+					atac_peaks_matrix_adata_object = atac_project_cohort_analysis.harmony_peaks_matrix_adata_object,
 					min_overlap_frac = min_overlap_frac,
 					scanvi_predictions_key = scanvi_predictions_key,
 					batch_key = batch_key,
@@ -351,9 +350,8 @@ workflow sc_multiome_analysis {
 				preprocessing_output_file_paths = flatten(multiome_preprocessing_output_file_paths),
 				cellranger_arc_feature_linkage_bedpe = flatten(preprocess.feature_linkage_bedpe),
 				per_barcode_metrics_csvs = flatten(preprocess.per_barcode_metrics_summary_csv),
-				filtered_rna_adata_object = rna_cross_team_cohort_analysis.filtered_adata_object,
-				filtered_atac_adata_object = atac_cross_team_cohort_analysis.merged_adata_object,
 				labeled_cells_rna_adata_object = rna_cross_team_cohort_analysis.labeled_cells_adata_object,
+				atac_peaks_matrix_adata_object = atac_cross_team_cohort_analysis.harmony_peaks_matrix_adata_object,
 				min_overlap_frac = min_overlap_frac,
 				scanvi_predictions_key = scanvi_predictions_key,
 				batch_key = batch_key,
@@ -634,7 +632,6 @@ workflow sc_multiome_analysis {
 		Array[File?] multiome_project_multivi_clustered_mudata_object = multiome_project_cohort_analysis.multivi_clustered_mudata_object
 		Array[File?] multiome_project_multivi_clustered_umap_png = multiome_project_cohort_analysis.multivi_clustered_umap_png
 		Array[File?] multiome_project_annotated_mudata_object = multiome_project_cohort_analysis.annotated_mudata_object
-		Array[File?] multiome_project_atac_annotated_adata_object = multiome_project_cohort_analysis.atac_annotated_adata_object
 		Array[File?] multiome_project_final_mudata_object = multiome_project_cohort_analysis.final_mudata_object
 		Array[File?] multiome_project_feature_linkage_csv = multiome_project_cohort_analysis.feature_linkage_csv
 		Array[File?] multiome_project_final_metadata_csv = multiome_project_cohort_analysis.final_metadata_csv
@@ -649,7 +646,6 @@ workflow sc_multiome_analysis {
 		File? multiome_cohort_multivi_clustered_mudata_object = multiome_cross_team_cohort_analysis.multivi_clustered_mudata_object
 		File? multiome_cohort_multivi_clustered_umap_png = multiome_cross_team_cohort_analysis.multivi_clustered_umap_png
 		File? multiome_cohort_annotated_mudata_object = multiome_cross_team_cohort_analysis.annotated_mudata_object
-		File? multiome_cohort_atac_annotated_adata_object = multiome_cross_team_cohort_analysis.atac_annotated_adata_object
 		File? multiome_cohort_final_mudata_object = multiome_cross_team_cohort_analysis.final_mudata_object
 		File? multiome_cohort_feature_linkage_csv = multiome_cross_team_cohort_analysis.feature_linkage_csv
 		File? multiome_cohort_final_metadata_csv = multiome_cross_team_cohort_analysis.final_metadata_csv
@@ -684,7 +680,7 @@ workflow sc_multiome_analysis {
 		n_comps: {help: "Number of principal components to compute. [30]"}
 		scvi_latent_key: {help: "Latent key to save the scVI latent to. ['X_scVI']"}
 		scanvi_latent_key: {help: "Latent key to save the scANVI latent to. ['X_scANVI']"}
-		scanvi_predictions_key: {help: "scANVI cell type predictions column name. ['C_scANVI']"}
+		scanvi_predictions_key: {help: "scANVI cell type predictions column name; in multiome cohort analysis, copied from the RNA modality to multiome_cell_type. ['C_scANVI']"}
 		batch_key: {help: "Key in MuData object for batch information. ['batch_id']"}
 		n_neighbors: {help: "The size of local neighborhood (in terms of number of neighboring data points) used for manifold approximation. [15]"}
 		leiden_res: {help: "Leiden resolutions which are the parameter values controlling the coarseness of the clustering. [0.2, 0.5, 1.0]"}

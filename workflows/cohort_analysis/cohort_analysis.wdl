@@ -17,9 +17,8 @@ workflow cohort_analysis {
 		Array[File] cellranger_arc_feature_linkage_bedpe
 		Array[File] per_barcode_metrics_csvs
 
-		File filtered_rna_adata_object
-		File filtered_atac_adata_object
 		File labeled_cells_rna_adata_object
+		File atac_peaks_matrix_adata_object
 
 		Float min_overlap_frac
 		String scanvi_predictions_key
@@ -75,8 +74,8 @@ workflow cohort_analysis {
 	call joint_qc {
 		input:
 			cohort_id = cohort_id,
-			filtered_rna_adata_object = filtered_rna_adata_object,
-			filtered_atac_adata_object = filtered_atac_adata_object,
+			labeled_cells_rna_adata_object = labeled_cells_rna_adata_object,
+			atac_peaks_matrix_adata_object = atac_peaks_matrix_adata_object,
 			per_barcode_metrics_csvs = per_barcode_metrics_csvs,
 			min_overlap_frac = min_overlap_frac,
 			raw_data_path = raw_data_path,
@@ -108,7 +107,6 @@ workflow cohort_analysis {
 		input:
 			cohort_id = cohort_id,
 			multivi_clustered_mudata_object = multivi_integration.multivi_clustered_mudata_object,
-			labeled_cells_rna_adata_object = labeled_cells_rna_adata_object,
 			scanvi_predictions_key = scanvi_predictions_key,
 			container_registry = container_registry,
 			zones = zones
@@ -179,7 +177,6 @@ workflow cohort_analysis {
 		
 		# Annotated cell type transfer to mudata object
 		File annotated_mudata_object = annotate_and_transfer.annotated_mudata_object
-		File atac_annotated_adata_object = annotate_and_transfer.atac_annotated_adata_object
 		
 		# Add Cell Ranger feature linkage bedpe to mudata object
 		File final_mudata_object = parse_feature_linkage.final_mudata_object #!FileCoercion
@@ -198,11 +195,10 @@ workflow cohort_analysis {
 		cohort_id: {help: "Name of the cohort; used to name output files."}
 		project_sample_ids: {help: "Associated team ID, sample ID, and dataset DOI URL; used to generate a sample list."}
 		preprocessing_output_file_paths: {help: "Selected preprocessed output files to upload to the staging bucket alongside selected cohort analysis output files."}
-		filtered_rna_adata_object: {help: "Cohort-level filtered RNA AnnData ({cohort}.filtered.h5ad from the RNA `filter` task)"}
-		filtered_atac_adata_object: {help: "Cohort-level filtered ATAC AnnData ({cohort}.merged_filtered.h5ad from the ATAC `merge_and_qc` task)"}
+		labeled_cells_rna_adata_object: {help: "RNA pipeline labeled AnnData ({cohort}.scanvi_labeled.h5ad from sc-rnaseq-wf's `label_scanvi` task): post-QC cells, HVGs plus DA marker genes, raw counts in layers['counts'], and the scANVI label column. Spike-in cells, if any, are dropped before pairing."}
+		atac_peaks_matrix_adata_object: {help: "ATAC pipeline cell-by-peak count matrix ({cohort}.harmony.leiden.peaks_matrix.h5ad from sc-atacseq-wf's Harmony Leiden `peak_calling` task): post-QC cells over the MACS3 peaks called per Leiden cluster and merged."}
 		per_barcode_metrics_csvs: {help: "Per-sample Cell Ranger ARC per_barcode_metrics.csv files, one per ARC run, from preprocess; cells are restricted to barcodes ARC called (is_cell == 1) before pairing the modalities."}
 		cellranger_arc_feature_linkage_bedpe: {help: "Per-sample Cell Ranger ARC feature_linkage.bedpe files, one per sample, from preprocess."}
-		labeled_cells_rna_adata_object: {help: "RNA pipeline labeled AnnData (labeled cells AnnData object from sc-rnaseq-wf) holding the label column."}
 		min_overlap_frac: {help: "Minimum fraction of the smaller modality that must be shared; below this the run fails as a likely barcode-key mismatch [0.5]"}
 		batch_key: {help: "Key in MuData object for batch information. ['batch_id']"}
 		scanvi_predictions_key: {help: "scANVI cell type predictions column name. ['C_scANVI']"}
@@ -233,8 +229,8 @@ task joint_qc {
 	input {
 		String cohort_id
 
-		File filtered_rna_adata_object
-		File filtered_atac_adata_object
+		File labeled_cells_rna_adata_object
+		File atac_peaks_matrix_adata_object
 		Array[File] per_barcode_metrics_csvs
 		Float min_overlap_frac
 
@@ -245,16 +241,16 @@ task joint_qc {
 		String zones
 	}
 
-	Int mem_gb = ceil(size([filtered_rna_adata_object, filtered_atac_adata_object], "GB") * 8 + 40)
-	Int disk_size = ceil(size([filtered_rna_adata_object, filtered_atac_adata_object], "GB") * 4 + 40)
+	Int mem_gb = ceil(size([labeled_cells_rna_adata_object, atac_peaks_matrix_adata_object], "GB") * 8 + 40)
+	Int disk_size = ceil(size([labeled_cells_rna_adata_object, atac_peaks_matrix_adata_object], "GB") * 4 + 40)
 
 	command <<<
 		set -euo pipefail
 
 		/usr/bin/time \
 		joint_qc \
-			--rna-adata-input ~{filtered_rna_adata_object} \
-			--atac-adata-input ~{filtered_atac_adata_object} \
+			--rna-adata-input ~{labeled_cells_rna_adata_object} \
+			--atac-adata-input ~{atac_peaks_matrix_adata_object} \
 			--per-barcode-metrics ~{sep=" " per_barcode_metrics_csvs} \
 			--min-overlap-frac ~{min_overlap_frac} \
 			--mudata-output "~{cohort_id}.filtered.h5mu"
@@ -281,13 +277,13 @@ task joint_qc {
 	}
 
 	meta {
-		description: "Intersect filtered RNA and ATAC barcodes into a paired Multiome MuData."
+		description: "Intersects post-QC RNA (scANVI-labeled, HVG) and ATAC (cell-by-peak) cells by barcode and sample into a paired Multiome MuData, restricted to cells Cell Ranger ARC called."
 	}
 
 	parameter_meta {
 		cohort_id: {help: "Name of the cohort; used to name output files."}
-		filtered_rna_adata_object: {help: "Cohort-level filtered RNA AnnData ({cohort}.filtered.h5ad from the RNA `filter` task)."}
-		filtered_atac_adata_object: {help: "Cohort-level filtered ATAC AnnData ({cohort}.merged_filtered.h5ad from the ATAC `merge_and_qc` task)"}
+		labeled_cells_rna_adata_object: {help: "RNA pipeline labeled AnnData ({cohort}.scanvi_labeled.h5ad from sc-rnaseq-wf's `label_scanvi` task): post-QC cells, HVGs plus DA marker genes, raw counts in layers['counts'], and the scANVI label column. Spike-in cells, if any, are dropped before pairing."}
+		atac_peaks_matrix_adata_object: {help: "ATAC pipeline cell-by-peak count matrix ({cohort}.harmony.leiden.peaks_matrix.h5ad from sc-atacseq-wf's Harmony Leiden `peak_calling` task): post-QC cells over the MACS3 peaks called per Leiden cluster and merged."}
 		per_barcode_metrics_csvs: {help: "Per-sample Cell Ranger ARC per_barcode_metrics.csv files, one per ARC run, from preprocess; cells are restricted to barcodes ARC called (is_cell == 1) before pairing the modalities."}
 		min_overlap_frac: {help: "Minimum fraction of the smaller modality that must be shared; below this the run fails as a likely barcode-key mismatch. [0.5]"}
 		raw_data_path: {help: "Raw data bucket path for outputs; location of raw bucket to upload task outputs to (`<raw_data_bucket>/workflow_execution/cohort_analysis/<cohort_analysis_version>/<run_timestamp>`)."}
@@ -303,7 +299,6 @@ task annotate_and_transfer {
 		String cohort_id
 
 		File multivi_clustered_mudata_object
-		File labeled_cells_rna_adata_object
 
 		String scanvi_predictions_key
 
@@ -311,8 +306,8 @@ task annotate_and_transfer {
 		String zones
 	}
 
-	Int mem_gb = ceil(size([multivi_clustered_mudata_object, labeled_cells_rna_adata_object], "GB") * 2 + 20)
-	Int disk_size = ceil(size([multivi_clustered_mudata_object, labeled_cells_rna_adata_object], "GB") * 4 + 50)
+	Int mem_gb = ceil(size(multivi_clustered_mudata_object, "GB") * 2 + 20)
+	Int disk_size = ceil(size(multivi_clustered_mudata_object, "GB") * 4 + 50)
 
 	command <<<
 		set -euo pipefail
@@ -320,15 +315,12 @@ task annotate_and_transfer {
 		/usr/bin/time \
 		annotate_and_transfer \
 			--mudata-input ~{multivi_clustered_mudata_object} \
-			--labeled-rna-input ~{labeled_cells_rna_adata_object} \
 			--label-key ~{scanvi_predictions_key} \
-			--mudata-output "~{cohort_id}.annotated.h5mu" \
-			--atac-adata-output "~{cohort_id}.atac_annotated.h5ad"
+			--mudata-output "~{cohort_id}.annotated.h5mu"
 	>>>
 
 	output {
 		File annotated_mudata_object = "~{cohort_id}.annotated.h5mu"
-		File atac_annotated_adata_object = "~{cohort_id}.atac_annotated.h5ad"
 	}
 
 	runtime {
@@ -342,14 +334,13 @@ task annotate_and_transfer {
 	}
 
 	meta {
-		description: "Transfers RNA-derived cell-type labels onto the paired Multiome MuData by barcode; paired cells absent from the labeled RNA object are kept and marked 'Unknown'."
+		description: "Sets the paired Multiome MuData's multiome_cell_type, on the shared obs and on both modalities, from the RNA modality's scANVI label column; the RNA modality's MapMyCells cell_type is left as it is, and paired cells without a label are kept and marked 'Unknown'."
 	}
 
 	parameter_meta {
 		cohort_id: {help: "Name of the cohort; used to name output files."}
 		multivi_clustered_mudata_object: {help: "Clustered paired Multiome MuData."}
-		labeled_cells_rna_adata_object: {help: "RNA pipeline labeled AnnData (labeled cells AnnData object from sc-rnaseq-wf) holding the label column."}
-		scanvi_predictions_key: {help: "scANVI cell type predictions column name. ['C_scANVI']"}
+		scanvi_predictions_key: {help: "scANVI cell type predictions column in the RNA modality's obs; copied to multiome_cell_type. ['C_scANVI']"}
 		container_registry: {help: "Container registry where workflow Docker images are hosted."}
 		zones: {help: "Space-delimited set of GCP zones to spin up compute in. ['us-central1-c us-central1-f']"}
 	}

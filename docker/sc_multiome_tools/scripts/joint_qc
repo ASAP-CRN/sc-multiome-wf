@@ -26,7 +26,7 @@ def bare_barcodes(adata: sc.AnnData) -> pd.Index:
     """
     The raw 16-mer, with whatever suffix each modality carries stripped: RNA as
     <bc>-1_<dataset_sample_id>_<n> from AnnData concat, ATAC as <bc>-<pool_id>
-    from split_demux_fragments.
+    from split_demux_fragments (kept through peak calling).
     """
     return adata.obs_names.str.split("-").str[0]
 
@@ -40,16 +40,23 @@ def intersect_and_build(
     per_barcode_metrics_csvs: list = None
 ):
     """
-    Assemble a paired-Multiome MuData from the two cohort-level, post-filter
-    AnnData objects:
-      - RNA:  {cohort}.filtered.h5ad         (output of the RNA `filter` task)
-      - ATAC: {cohort}.merged_filtered.h5ad  (output of the ATAC `merge_and_qc` task)
+    Assemble a paired-Multiome MuData from two cohort-level, post-QC AnnData objects:
+      - RNA:  {cohort}.scanvi_labeled.h5ad                (sc-rnaseq-wf `label_scanvi`; HVGs, scANVI labels)
+      - ATAC: {cohort}.harmony.leiden.peaks_matrix.h5ad   (sc-atacseq-wf Harmony Leiden `peak_calling`; cell-by-peak)
 
-    Both are re-keyed on <barcode>_<sample> and, when per-barcode metrics are
-    supplied, restricted to Cell Ranger ARC's joint cell call before pairing.
+    Spike-in reference cells are dropped from RNA. Both are re-keyed on
+    <barcode>_<sample> and, when per-barcode metrics are supplied, restricted
+    to Cell Ranger ARC's joint cell call before pairing.
     """
-    print(f"RNA cells (post-QC, from filter): {adata_rna.n_obs}")
-    print(f"ATAC cells (post-QC, from merge_and_qc): {adata_atac.n_obs}")
+    print(f"RNA cells (post-QC, scANVI-labeled): {adata_rna.n_obs}")
+    print(f"ATAC cells (post-QC, peak matrix): {adata_atac.n_obs}")
+
+    # Reference cells spiked into the RNA analysis have no ATAC counterpart, and
+    # their <barcode>_<sample> keys need not be unique
+    if "is_spike_in" in adata_rna.obs:
+        is_spike_in = adata_rna.obs["is_spike_in"].astype(bool).to_numpy()
+        adata_rna = adata_rna[~is_spike_in].copy()
+        print(f"RNA spike-in cells dropped: {int(is_spike_in.sum())}")
 
     if per_barcode_metrics_csvs:
         cells = arc_cell_barcodes(per_barcode_metrics_csvs)
@@ -123,28 +130,28 @@ def main(args):
 
     mdata.write(
         filename=args.mudata_output,
-        compression="gzip"
+        compression="lzf"
     )
     print(f"Wrote {args.mudata_output}")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Intersect filtered RNA and ATAC barcodes into a paired Multiome MuData"
+        description="Intersect post-QC RNA and ATAC barcodes into a paired Multiome MuData"
     )
     parser.add_argument(
         "-r",
         "--rna-adata-input",
         type=str,
         required=True,
-        help="Cohort-level filtered RNA AnnData ({cohort}.filtered.h5ad from the RNA `filter` task)",
+        help="Cohort-level scANVI-labeled RNA AnnData ({cohort}.scanvi_labeled.h5ad from the RNA `label_scanvi` task)",
     )
     parser.add_argument(
         "-a",
         "--atac-adata-input",
         type=str,
         required=True,
-        help="Cohort-level filtered ATAC AnnData ({cohort}.merged_filtered.h5ad from the ATAC `merge_and_qc` task)",
+        help="Cohort-level ATAC cell-by-peak AnnData ({cohort}.harmony.leiden.peaks_matrix.h5ad from the ATAC Harmony Leiden `peak_calling` task)",
     )
     parser.add_argument(
         "-f",

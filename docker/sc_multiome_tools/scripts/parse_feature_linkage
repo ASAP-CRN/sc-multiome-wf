@@ -177,7 +177,7 @@ def combine_metadata(
         shared[col] = rna[col] if in_rna else atac[col]
 
     shared = pd.DataFrame(shared)
-    drop = list(shared.columns) + ["cell_type"]  # cell_type already in mdata.obs
+    drop = list(shared.columns) + ["multiome_cell_type"]  # multiome_cell_type already in mdata.obs
 
     combined = pd.concat(
         [
@@ -207,7 +207,7 @@ def main(args):
     mdata.uns["feature_linkage_per_sample"] = links
     mdata.write(
         filename=args.mudata_output,
-        compression="gzip"
+        compression="lzf"
     )
     print(f"Wrote {args.mudata_output}")
 
