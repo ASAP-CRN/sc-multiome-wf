@@ -25,7 +25,7 @@
   "sc_multiome_analysis.scanvi_predictions_key": "String (optional, default = \"C_scANVI\")",
   "sc_multiome_analysis.n_neighbors": "Int (optional, default = 15)",
   "sc_multiome_analysis.leiden_res": "Array[Float] (optional, default = [0.2, 0.5, 1.0])",
-  "sc_multiome_analysis.rna_groups": "Array[String] (optional, default = [\"sample\", \"batch_id\", \"cell_type\", \"leiden_res_0.20\", \"leiden_res_0.50\", \"leiden_res_1.0\"])",
+  "sc_multiome_analysis.rna_groups": "Array[String] (optional, default = [\"sample\", \"batch_id\", \"cell_type\", \"leiden_res_0.20\", \"leiden_res_0.50\", \"leiden_res_1.00\"])",
   "sc_multiome_analysis.rna_features": "Array[String] (optional, default = [\"n_genes_by_counts\", \"total_counts\", \"pct_counts_mt\", \"pct_counts_rb\", \"doublet_score\", \"S_score\", \"G2M_score\"])",
   "sc_multiome_analysis.peakvi_latent_key": "String (optional, default = \"X_peakVI\")",
   "sc_multiome_analysis.peakvi_max_epochs": "Int (optional, default = 300)",

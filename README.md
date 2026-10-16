@@ -187,7 +187,7 @@ An input template file can be found at [workflows/inputs.json](workflows/inputs.
 | String? | scanvi_predictions_key | sc RNA-seq, sc Multiome | scANVI cell type predictions column name; in multiome cohort analysis, copied from the RNA modality to `multiome_cell_type`. ['C_scANVI'] |
 | Int? | n_neighbors | sc RNA-seq, sc Multiome | The size of local neighborhood (in terms of number of neighboring data points) used for manifold approximation; used for RNA and MultiVI clustering. [15] |
 | Array[Float]? | leiden_res | sc RNA-seq, sc Multiome | Leiden resolutions which are the parameter values controlling the coarseness of the clustering; used for RNA and MultiVI clustering. [0.2, 0.5, 1.0] |
-| Array[String]? | rna_groups | sc RNA-seq | RNA groups to produce umap plots for. ['sample', 'batch_id', 'cell_type', 'leiden_res_0.20', 'leiden_res_0.50', 'leiden_res_1.0'] |
+| Array[String]? | rna_groups | sc RNA-seq | RNA groups to produce umap plots for. ['sample', 'batch_id', 'cell_type', 'leiden_res_0.20', 'leiden_res_0.50', 'leiden_res_1.00'] |
 | Array[String]? | rna_features | sc RNA-seq | RNA features to produce umap plots for. ['n_genes_by_counts', 'total_counts', 'pct_counts_mt', 'pct_counts_rb', 'doublet_score', 'S_score', 'G2M_score'] |
 | String? | peakvi_latent_key | sc ATAC-seq | Latent key to save the PeakVI latent to. ['X_peakVI'] |
 | Int? | peakvi_max_epochs | sc ATAC-seq | The maximum number of full passes through the training data during PeakVI model training. If the model converges early, training will halt before this limit is reached. [300] |

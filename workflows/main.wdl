@@ -52,7 +52,7 @@ workflow sc_multiome_analysis {
 		Array[Float] leiden_res = [0.2, 0.5, 1.0]
 
 		# RNA - Groups and features
-		Array[String] rna_groups = ["sample", "batch_id", "cell_type", "leiden_res_0.20", "leiden_res_0.50", "leiden_res_1.0"]
+		Array[String] rna_groups = ["sample", "batch_id", "cell_type", "leiden_res_0.20", "leiden_res_0.50", "leiden_res_1.00"]
 		Array[String] rna_features = ["n_genes_by_counts", "total_counts", "pct_counts_mt", "pct_counts_rb", "doublet_score", "S_score", "G2M_score"]
 
 		# ATAC - Sample integration
@@ -687,7 +687,7 @@ workflow sc_multiome_analysis {
 		batch_key: {help: "Key in MuData object for batch information. ['batch_id']"}
 		n_neighbors: {help: "The size of local neighborhood (in terms of number of neighboring data points) used for manifold approximation. [15]"}
 		leiden_res: {help: "Leiden resolutions which are the parameter values controlling the coarseness of the clustering. [0.2, 0.5, 1.0]"}
-		rna_groups: {help: "RNA groups to produce umap plots for. ['sample', 'batch_id', 'cell_type', 'leiden_res_0.20', 'leiden_res_0.50', 'leiden_res_1.0']"}
+		rna_groups: {help: "RNA groups to produce umap plots for. ['sample', 'batch_id', 'cell_type', 'leiden_res_0.20', 'leiden_res_0.50', 'leiden_res_1.00']"}
 		rna_features: {help: "RNA features to produce umap plots for. ['n_genes_by_counts', 'total_counts', 'pct_counts_mt', 'pct_counts_rb', 'doublet_score', 'S_score', 'G2M_score']"}
 		peakvi_latent_key: {help: "Latent key to save the peakVI latent to. ['X_peakVI']"}
 		peakvi_max_epochs: {help: "The maximum number of full passes through the training data during PeakVI model training. If the model converges early, training will halt before this limit is reached. [300]"}
