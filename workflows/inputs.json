@@ -34,6 +34,7 @@
   "sc_multiome_analysis.atac_groups": "Array[String] (optional, default = [\"sample\", \"batch\", \"team\", \"dataset\", \"batch_id\", \"leiden\"])",
   "sc_multiome_analysis.atac_features": "Array[String] (optional, default = [\"n_fragment\", \"tsse\", \"frac_dup\", \"frac_mito\", \"doublet_score\", \"doublet_probability\"])",
   "sc_multiome_analysis.min_overlap_frac": "Float (optional, default = 0.5)",
+  "sc_multiome_analysis.min_peak_cell_frac": "Float (optional, default = 0.01)",
   "sc_multiome_analysis.rna_project_cohort_analysis.allen_brain_mmc_marker_genes_json": "File? (optional)",
   "sc_multiome_analysis.rna_cross_team_cohort_analysis.allen_brain_mmc_marker_genes_json": "File? (optional)",
   "sc_multiome_analysis.multivi_latent_key": "String (optional, default = \"X_multiVI\")",

@@ -48,7 +48,7 @@ RNA and ATAC QC filters are those of the sc-rnaseq-wf and sc-atacseq-wf cohort a
 | :- | :- |
 | Cells | Called by Cell Ranger ARC (`is_cell == 1`) and passing both RNA and ATAC QC |
 | Minimum shared fraction of the smaller modality (`min_overlap_frac`) | 0.5; below this the run fails |
-| MultiVI features | RNA: the HVGs plus Kamath DA marker genes from the RNA workflow (raw counts from `layers["counts"]`); ATAC: all peaks in the ATAC workflow's Harmony Leiden peak matrix |
+| MultiVI features | RNA: the HVGs plus Kamath DA marker genes from the RNA workflow (raw counts from `layers["counts"]`); ATAC: peaks from the ATAC workflow's Harmony Leiden peak matrix detected in ≥ 1% of paired cells (`min_peak_cell_frac`; flagged as `mod["atac"].var["selected"]`) |
 | MultiVI batch key (`batch_key`) | `batch_id` (team, dataset and pool) |
 | MultiVI training | `multivi_max_epochs` 300, `multivi_n_hidden` 128, `multivi_batch_size` 128 |
 | Leiden clustering | `n_neighbors` 15; resolutions 0.2, 0.5 and 1.0 |
@@ -151,8 +151,8 @@ Run once per team (all samples from a single team) if `project.run_project_cohor
 
 1. **scRNA-seq cohort analysis**: The [sc-rnaseq-wf cohort analysis](https://github.com/ASAP-CRN/sc-rnaseq-wf) is run on the RNA AnnData objects (QC, filtering, MapMyCells cell type assignment, normalization, scVI/scANVI integration, and clustering).
 2. **scATAC-seq cohort analysis**: The [sc-atacseq-wf cohort analysis](https://github.com/ASAP-CRN/sc-atacseq-wf) is run on the ATAC AnnData objects (QC, Harmony and PeakVI integration, peak calling, and motif enrichment).
-3. **Joint QC**: Cells from the RNA workflow's scANVI-labeled object (spike-in cells dropped) and the ATAC workflow's Harmony Leiden peak matrix are restricted to Cell Ranger ARC-called cells and intersected by barcode and sample into a paired multiome MuData object. The run fails if the fraction of shared barcodes is below `min_overlap_frac`, as this likely indicates a barcode key mismatch.
-4. **MultiVI integration**: A MultiVI model is trained on the paired data to learn a joint, batch-corrected latent representation, which is then clustered with Leiden.
+3. **Joint QC**: Cells from the RNA workflow's scANVI-labeled object (spike-in cells dropped) and the ATAC workflow's Harmony Leiden peak matrix are restricted to Cell Ranger ARC-called cells and intersected by barcode and sample into a paired multiome MuData object. The run fails if the fraction of shared barcodes is below `min_overlap_frac`, as this likely indicates a barcode key mismatch. ATAC peaks detected in at least `min_peak_cell_frac` of the paired cells are flagged for MultiVI.
+4. **MultiVI integration**: A MultiVI model is trained on the paired data (RNA HVGs and the flagged ATAC peaks) to learn a joint, batch-corrected latent representation, which is then clustered with Leiden.
 5. **Annotate data**: `multiome_cell_type` is set from the RNA modality's scANVI predictions (`scanvi_predictions_key`) on the shared obs and both modalities (paired cells without a label are marked 'Unknown'; the RNA modality's MapMyCells `cell_type` is left as it is), and per-sample Cell Ranger ARC peak-gene feature linkages are added.
 
 # Inputs
@@ -196,6 +196,7 @@ An input template file can be found at [workflows/inputs.json](workflows/inputs.
 | Array[String]? | atac_groups | sc ATAC-seq | ATAC groups to produce umap plots for. ['sample', 'batch', 'team', 'dataset', 'batch_id', 'leiden'] |
 | Array[String]? | atac_features | sc ATAC-seq | ATAC features to produce umap plots for. ['n_fragment', 'tsse', 'frac_dup', 'frac_mito', 'doublet_score', 'doublet_probability'] |
 | Float? | min_overlap_frac | sc Multiome | Minimum fraction of the smaller modality's barcodes that must be shared between the RNA and ATAC objects in joint QC; below this the run fails as a likely barcode key mismatch. [0.5] |
+| Float? | min_peak_cell_frac | sc Multiome | Minimum fraction of paired cells in which an ATAC peak must be detected for it to be used in MultiVI integration; flagged in joint QC as the ATAC modality's `var["selected"]`. [0.01] |
 | String? | multivi_latent_key | sc Multiome | Latent key to save the MultiVI latent to. ['X_multiVI'] |
 | Int? | multivi_max_epochs | sc Multiome | The maximum number of full passes through the training data during MultiVI model training. If the model converges early, training will halt before this limit is reached. [300] |
 | Int? | multivi_n_hidden | sc Multiome | Number of nodes per hidden layer for MultiVI. [128] |

@@ -21,6 +21,7 @@ workflow cohort_analysis {
 		File atac_peaks_matrix_adata_object
 
 		Float min_overlap_frac
+		Float min_peak_cell_frac
 		String scanvi_predictions_key
 		String batch_key
 		String multivi_latent_key
@@ -78,6 +79,7 @@ workflow cohort_analysis {
 			atac_peaks_matrix_adata_object = atac_peaks_matrix_adata_object,
 			per_barcode_metrics_csvs = per_barcode_metrics_csvs,
 			min_overlap_frac = min_overlap_frac,
+			min_peak_cell_frac = min_peak_cell_frac,
 			raw_data_path = raw_data_path,
 			workflow_info = workflow_info,
 			billing_project = billing_project,
@@ -200,6 +202,7 @@ workflow cohort_analysis {
 		per_barcode_metrics_csvs: {help: "Per-sample Cell Ranger ARC per_barcode_metrics.csv files, one per ARC run, from preprocess; cells are restricted to barcodes ARC called (is_cell == 1) before pairing the modalities."}
 		cellranger_arc_feature_linkage_bedpe: {help: "Per-sample Cell Ranger ARC feature_linkage.bedpe files, one per sample, from preprocess."}
 		min_overlap_frac: {help: "Minimum fraction of the smaller modality that must be shared; below this the run fails as a likely barcode-key mismatch [0.5]"}
+		min_peak_cell_frac: {help: "Minimum fraction of paired cells in which an ATAC peak must be detected for it to be used in MultiVI integration; flagged in joint QC as the ATAC modality's var['selected']. [0.01]"}
 		batch_key: {help: "Key in MuData object for batch information. ['batch_id']"}
 		scanvi_predictions_key: {help: "scANVI cell type predictions column name. ['C_scANVI']"}
 		multivi_latent_key: {help: "Latent key to save the MultiVI latent to. ['X_multiVI']"}
@@ -233,6 +236,7 @@ task joint_qc {
 		File atac_peaks_matrix_adata_object
 		Array[File] per_barcode_metrics_csvs
 		Float min_overlap_frac
+		Float min_peak_cell_frac
 
 		String raw_data_path
 		Array[Array[String]] workflow_info
@@ -253,6 +257,7 @@ task joint_qc {
 			--atac-adata-input ~{atac_peaks_matrix_adata_object} \
 			--per-barcode-metrics ~{sep=" " per_barcode_metrics_csvs} \
 			--min-overlap-frac ~{min_overlap_frac} \
+			--min-peak-cell-frac ~{min_peak_cell_frac} \
 			--mudata-output "~{cohort_id}.filtered.h5mu"
 
 		upload_outputs \
@@ -277,7 +282,7 @@ task joint_qc {
 	}
 
 	meta {
-		description: "Intersects post-QC RNA (scANVI-labeled, HVG) and ATAC (cell-by-peak) cells by barcode and sample into a paired Multiome MuData, restricted to cells Cell Ranger ARC called."
+		description: "Intersects post-QC RNA (scANVI-labeled, HVG) and ATAC (cell-by-peak) cells by barcode and sample into a paired Multiome MuData, restricted to cells Cell Ranger ARC called, and flags ATAC peaks detected in at least min_peak_cell_frac of the paired cells as var['selected'] for MultiVI."
 	}
 
 	parameter_meta {
@@ -286,6 +291,7 @@ task joint_qc {
 		atac_peaks_matrix_adata_object: {help: "ATAC pipeline cell-by-peak count matrix ({cohort}.harmony.leiden.peaks_matrix.h5ad from sc-atacseq-wf's Harmony Leiden `peak_calling` task): post-QC cells over the MACS3 peaks called per Leiden cluster and merged."}
 		per_barcode_metrics_csvs: {help: "Per-sample Cell Ranger ARC per_barcode_metrics.csv files, one per ARC run, from preprocess; cells are restricted to barcodes ARC called (is_cell == 1) before pairing the modalities."}
 		min_overlap_frac: {help: "Minimum fraction of the smaller modality that must be shared; below this the run fails as a likely barcode-key mismatch. [0.5]"}
+		min_peak_cell_frac: {help: "Minimum fraction of paired cells in which an ATAC peak must be detected for it to be used in MultiVI integration; flagged in joint QC as the ATAC modality's var['selected']. [0.01]"}
 		raw_data_path: {help: "Raw data bucket path for outputs; location of raw bucket to upload task outputs to (`<raw_data_bucket>/workflow_execution/cohort_analysis/<cohort_analysis_version>/<run_timestamp>`)."}
 		workflow_info: {help: "UTC timestamp, workflow name, workflow version, and GitHub release; stored in the file-level manifest and final manifest with all saved files."}
 		billing_project: {help: "Billing project to charge GCP costs."}

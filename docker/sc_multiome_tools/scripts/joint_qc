@@ -2,6 +2,7 @@
 
 import argparse
 import anndata
+import numpy as np
 import pandas as pd
 import scanpy as sc
 import mudata as md
@@ -118,6 +119,30 @@ def intersect_and_build(
     return mdata
 
 
+def select_peaks(mdata: md.MuData, min_peak_cell_frac: float):
+    """
+    Flag ATAC peaks detected (count > 0) in at least min_peak_cell_frac of the
+    paired cells as var['selected']; integrate_multivi trains on these only.
+    """
+    atac = mdata.mod["atac"]
+    n_cells_detected = np.asarray((atac.X > 0).sum(axis=0)).ravel()
+    min_cells = int(np.ceil(min_peak_cell_frac * atac.n_obs))
+    selected = n_cells_detected >= min_cells
+    n_selected = int(selected.sum())
+    print(f"ATAC peaks detected in >= {min_peak_cell_frac:.1%} of paired cells "
+          f"(>= {min_cells} cells): {n_selected} of {atac.n_vars}")
+
+    if n_selected == 0:
+        raise ValueError(
+            f"No ATAC peaks are detected in at least {min_peak_cell_frac:.1%} of "
+            f"the {atac.n_obs} paired cells. Lower min_peak_cell_frac or check "
+            "that the ATAC object holds peak counts."
+        )
+
+    atac.var["selected"] = selected
+    return mdata
+
+
 def main(args):
     anndata.settings.allow_write_nullable_strings = False
 
@@ -127,6 +152,7 @@ def main(args):
     mdata = intersect_and_build(
         adata_rna, adata_atac, args.min_overlap_frac, args.per_barcode_metrics
     )
+    mdata = select_peaks(mdata, args.min_peak_cell_frac)
 
     mdata.write(
         filename=args.mudata_output,
@@ -159,6 +185,13 @@ if __name__ == "__main__":
         type=float,
         default=0.5,
         help="Minimum fraction of the smaller modality that must be shared; below this the run fails as a likely barcode-key mismatch [0.5]",
+    )
+    parser.add_argument(
+        "-c",
+        "--min-peak-cell-frac",
+        type=float,
+        default=0.01,
+        help="Minimum fraction of paired cells in which an ATAC peak must be detected to be flagged var['selected'] for MultiVI [0.01]",
     )
     parser.add_argument(
         "-p",

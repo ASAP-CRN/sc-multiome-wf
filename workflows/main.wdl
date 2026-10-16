@@ -67,6 +67,7 @@ workflow sc_multiome_analysis {
 
 		# Multiome - QC
 		Float min_overlap_frac = 0.5
+		Float min_peak_cell_frac = 0.01
 
 		# Multiome - Sample integration
 		String multivi_latent_key = "X_multiVI"
@@ -243,6 +244,7 @@ workflow sc_multiome_analysis {
 					labeled_cells_rna_adata_object = rna_project_cohort_analysis.labeled_cells_adata_object,
 					atac_peaks_matrix_adata_object = atac_project_cohort_analysis.harmony_peaks_matrix_adata_object,
 					min_overlap_frac = min_overlap_frac,
+					min_peak_cell_frac = min_peak_cell_frac,
 					scanvi_predictions_key = scanvi_predictions_key,
 					batch_key = batch_key,
 					multivi_latent_key = multivi_latent_key,
@@ -353,6 +355,7 @@ workflow sc_multiome_analysis {
 				labeled_cells_rna_adata_object = rna_cross_team_cohort_analysis.labeled_cells_adata_object,
 				atac_peaks_matrix_adata_object = atac_cross_team_cohort_analysis.harmony_peaks_matrix_adata_object,
 				min_overlap_frac = min_overlap_frac,
+				min_peak_cell_frac = min_peak_cell_frac,
 				scanvi_predictions_key = scanvi_predictions_key,
 				batch_key = batch_key,
 				multivi_latent_key = multivi_latent_key,
@@ -693,6 +696,7 @@ workflow sc_multiome_analysis {
 		atac_groups: {help: "ATAC groups to produce umap plots for. ['sample', 'batch', 'team', 'dataset', 'batch_id', 'leiden']"}
 		atac_features: {help: "ATAC features to produce umap plots for. ['n_fragment', 'tsse', 'frac_dup', 'frac_mito', 'doublet_score', 'doublet_probability']"}
 		min_overlap_frac: {help: "Minimum fraction of the smaller modality that must be shared; below this the run fails as a likely barcode-key mismatch. [0.5]"}
+		min_peak_cell_frac: {help: "Minimum fraction of paired cells in which an ATAC peak must be detected for it to be used in MultiVI integration; flagged in joint QC as the ATAC modality's var['selected']. [0.01]"}
 		multivi_latent_key: {help: "Latent key to save the MultiVI latent to. ['X_multiVI']"}
 		multivi_max_epochs: {help: "The maximum number of full passes through the training data during MultiVI model training. If the model converges early, training will halt before this limit is reached. [300]"}
 		multivi_n_hidden: {help: "Number of nodes per hidden layer for MultiVI (i.e., the number of neurons per fully-connected layer between the input features and the latent space). [128]"}
