@@ -32,8 +32,26 @@ def bare_barcodes(adata: sc.AnnData) -> pd.Index:
     return adata.obs_names.str.split("-").str[0]
 
 
-def joint_keys(adata: sc.AnnData) -> pd.Index:
-    return pd.Index(bare_barcodes(adata) + "_" + adata.obs["sample"].astype(str).values)
+def joint_keys(adata: sc.AnnData, name: str) -> pd.Index:
+    """
+    <barcode>_<sample>_<pool>. Barcodes repeat across Cell Ranger ARC runs, and the
+    same donor (sample) can be in several pools, so all three are needed for a
+    unique key. Non-multiplexed samples have no obs['pool'] and are one run each.
+    """
+    pool = (
+        adata.obs["pool"].astype(object).fillna("").astype(str).values
+        if "pool" in adata.obs else np.full(adata.n_obs, "", dtype=object)
+    )
+    keys = pd.Index(
+        bare_barcodes(adata) + "_" + adata.obs["sample"].astype(str).values + "_" + pool
+    )
+    if not keys.is_unique:
+        duplicated = keys[keys.duplicated()].unique()
+        raise ValueError(
+            f"{name}: {len(duplicated)} <barcode>_<sample>_<pool> keys are not unique, "
+            f"e.g. {list(duplicated[:5])}. Check obs['sample'] and obs['pool']."
+        )
+    return keys
 
 
 def intersect_and_build(
@@ -46,14 +64,14 @@ def intersect_and_build(
       - ATAC: {cohort}.harmony.leiden.peaks_matrix.h5ad   (sc-atacseq-wf Harmony Leiden `peak_calling`; cell-by-peak)
 
     Spike-in reference cells are dropped from RNA. Both are re-keyed on
-    <barcode>_<sample> and, when per-barcode metrics are supplied, restricted
-    to Cell Ranger ARC's joint cell call before pairing.
+    <barcode>_<sample>_<pool> and, when per-barcode metrics are supplied,
+    restricted to Cell Ranger ARC's joint cell call before pairing.
     """
     print(f"RNA cells (post-QC, scANVI-labeled): {adata_rna.n_obs}")
     print(f"ATAC cells (post-QC, peak matrix): {adata_atac.n_obs}")
 
     # Reference cells spiked into the RNA analysis have no ATAC counterpart, and
-    # their <barcode>_<sample> keys need not be unique
+    # their <barcode>_<sample>_<pool> keys need not be unique
     if "is_spike_in" in adata_rna.obs:
         is_spike_in = adata_rna.obs["is_spike_in"].astype(bool).to_numpy()
         adata_rna = adata_rna[~is_spike_in].copy()
@@ -70,10 +88,12 @@ def intersect_and_build(
 
     # The joint key is only a matching device. Keep RNA's native index --
     # <barcode>-1_<dataset_id>.<sample_id>[.<pool_id>]_<n>
-    rna_native = pd.Series(adata_rna.obs_names.values, index=joint_keys(adata_rna))
+    rna_keys = joint_keys(adata_rna, "RNA")
+    atac_keys = joint_keys(adata_atac, "ATAC")
+    rna_native = pd.Series(adata_rna.obs_names.values, index=rna_keys)
 
-    adata_rna.obs_names = joint_keys(adata_rna)
-    adata_atac.obs_names = joint_keys(adata_atac)
+    adata_rna.obs_names = rna_keys
+    adata_atac.obs_names = atac_keys
 
     n_rna = adata_rna.n_obs
     n_atac = adata_atac.n_obs
@@ -87,8 +107,8 @@ def intersect_and_build(
     if n_shared == 0:
         raise ValueError(
             "Zero shared cells between RNA and ATAC after keying on "
-            "<barcode>_<sample>. Check that both objects carry an obs['sample'] "
-            "with matching values, and that neither is keyed on atac_barcode."
+            "<barcode>_<sample>_<pool>. Check that both objects carry obs['sample'] "
+            "and obs['pool'] with matching values, and that neither is keyed on atac_barcode."
         )
     if frac < min_overlap_frac:
         raise ValueError(

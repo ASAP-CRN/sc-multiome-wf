@@ -282,7 +282,7 @@ task joint_qc {
 	}
 
 	meta {
-		description: "Intersects post-QC RNA (scANVI-labeled, HVG) and ATAC (cell-by-peak) cells by barcode and sample into a paired Multiome MuData, restricted to cells Cell Ranger ARC called, and flags ATAC peaks detected in at least min_peak_cell_frac of the paired cells as var['selected'] for MultiVI."
+		description: "Intersects post-QC RNA (scANVI-labeled, HVG) and ATAC (cell-by-peak) cells by barcode, sample and pool into a paired Multiome MuData, restricted to cells Cell Ranger ARC called, and flags ATAC peaks detected in at least min_peak_cell_frac of the paired cells as var['selected'] for MultiVI."
 	}
 
 	parameter_meta {
