@@ -87,18 +87,30 @@ def resolve_sample_ids(mdata: md.MuData, file_ids: set, sample_key: str):
     for pooled data and {dataset_id}.{sample_id} otherwise. Demultiplexed objects
     carry the donor in 'sample' and the pool in 'pool', so prefer whichever column
     actually contains the ids in the filenames.
+
+    A run can have no paired cells (all removed by QC or the Cell Ranger ARC cell
+    call), so if no column contains every BEDPE id, use the one matching the most.
     """
     searched = []
+    best = None
     for key in [sample_key] + [k for k in ("pool", "sample") if k != sample_key]:
         for where, series in candidate_id_columns(mdata, key):
             values = set(series.astype(str).unique())
-            searched.append(f"{where} ({len(values)} ids)")
+            n_matched = len(file_ids & values)
+            searched.append(f"{where} ({len(values)} ids, {n_matched} matching BEDPEs)")
             if file_ids <= values:
                 print(f"BEDPE ids resolved against {where}")
                 return series.astype(str)
+            if n_matched > 0 and (best is None or n_matched > best[0]):
+                best = (n_matched, where, series)
+
+    if best is not None:
+        n_matched, where, series = best
+        print(f"BEDPE ids resolved against {where} ({n_matched} of {len(file_ids)} BEDPEs match)")
+        return series.astype(str)
 
     raise ValueError(
-        f"No per-cell id column contains the BEDPE ids {sorted(file_ids)}. "
+        f"No per-cell id column contains any of the BEDPE ids {sorted(file_ids)}. "
         f"BEDPEs are named per Cell Ranger ARC run -- by pool for pooled data, "
         f"by sample otherwise. Searched: {searched or 'nothing found'}."
     )
@@ -122,22 +134,26 @@ def stack_linkages(
 
     frames = []
     seen = set()
+    skipped = []
     for path in bedpe_paths:
         sid = sample_id_from_filename(path)
         if sid not in obs_samples:
-            raise ValueError(
-                f"BEDPE '{os.path.basename(path)}' resolves to id '{sid}', "
-                f"which is not among the resolved ids. "
-                f"Known ids: {sorted(obs_samples)}."
-            )
+            skipped.append(sid)
+            continue
         seen.add(sid)
         df = parse_one_bedpe(path, sid, keep_peak_and_gene_only)
         print(f"  {sid}: {len(df)} linkages")
         frames.append(df)
 
+    if skipped:
+        print(f"[WARNING] Skipped {len(skipped)} BEDPE(s) with no paired cells in the MuData: {sorted(skipped)}")
+
     missing = obs_samples - seen
     if missing:
-        print(f"WARNING: no BEDPE provided for samples present in obs: {sorted(missing)}")
+        print(f"[WARNING] No BEDPE provided for samples present in obs: {sorted(missing)}")
+
+    if not frames:
+        raise ValueError("None of the BEDPEs match the paired cells in the MuData.")
 
     links = pd.concat(frames, ignore_index=True)
 
