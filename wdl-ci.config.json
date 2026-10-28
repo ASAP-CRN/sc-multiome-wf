@@ -7,7 +7,7 @@
       "tasks": {
         "joint_qc": {
           "key": "joint_qc",
-          "digest": "l7umgstx67cwfujtm4rg7mbhhkmgd5zw",
+          "digest": "",
           "tests": [
             {
               "inputs": {
@@ -39,7 +39,7 @@
         },
         "annotate_and_transfer": {
           "key": "annotate_and_transfer",
-          "digest": "iftzjoslhlqmsqqe6wazamhf5p5u74je",
+          "digest": "",
           "tests": [
             {
               "inputs": {
@@ -435,7 +435,7 @@
         },
         "rna_demux_counts": {
           "key": "rna_demux_counts",
-          "digest": "l6z43zcptssuppfppxdyiji6tijzchdf",
+          "digest": "",
           "tests": [
             {
               "inputs": {
