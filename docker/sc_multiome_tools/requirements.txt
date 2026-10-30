@@ -1,0 +1,7 @@
+argparse==1.4.0
+cellbender==0.4.0
+snapatac2==2.9.0
+scanpy==1.12.2
+scikit-image==0.26.0
+mudata==0.4.1
+hdf5plugin==6.0.0

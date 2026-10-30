@@ -1,0 +1,85 @@
+#!/usr/bin/env python3
+
+import argparse
+import os
+import re
+
+
+# Cell Ranger FASTQ naming: <sample>_S[0-9]+_L[0-9]{3}_(I[12]|R[123])_[0-9]{3}.fastq.gz
+FASTQ_SAMPLE_PREFIX = re.compile(
+    r"^(.+)_S[0-9]+_L[0-9]{3}_(?:I[1-2]|R[1-3])_[0-9]{3}\.(?:fastq|fq)(?:\.gz)?$"
+)
+
+
+def sample_prefix(filename):
+    match = FASTQ_SAMPLE_PREFIX.match(filename)
+    if match is None:
+        raise ValueError(f"Could not infer the Cell Ranger sample prefix for {filename}")
+    return match.group(1)
+
+
+def modality(sample_prefix):
+    name = sample_prefix.lower()
+    if "atac" in name:
+        return "ATAC"
+    if "rna" in name:
+        return "RNA"
+    return None
+
+
+LIBRARY_TYPES = {
+    "ATAC": "Chromatin Accessibility",
+    "RNA": "Gene Expression",
+}
+
+
+def main(args):
+    fastqs_dir_path = os.path.join(os.getcwd(), "fastqs")
+
+    # One row per FASTQ sample prefix; a library sequenced across multiple runs
+    # (e.g. different flowcells reusing the same S/L numbers) gets one row per run
+    rows = []
+    for entry in sorted(os.listdir(fastqs_dir_path)):
+        prefix = sample_prefix(entry)
+        library = modality(prefix)
+        if library is None:
+            raise ValueError(f"Could not determine library type for {entry}")
+        # The sample column must match the FASTQ name prefix preceding _S[0-9]+
+        row = f"{fastqs_dir_path},{prefix},{LIBRARY_TYPES[library]}"
+        if row not in rows:
+            rows.append(row)
+
+    missing = set(LIBRARY_TYPES.values()) - {row.split(",")[2] for row in rows}
+    if missing:
+        raise ValueError(f"No FASTQs found for library type(s) {sorted(missing)} for sample {args.sample_id}")
+
+    csv_content = "\n".join(["fastqs,sample,library_type"] + rows)
+    with open(args.output, "w") as file:
+        file.write(csv_content)
+
+    print(f"Finished generating {args.output}:")
+    print(csv_content)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Generate the Cell Ranger Libraries CSV which declares the input FASTQ data for the libraries that make up a Feature Barcode experiment"
+    )
+    parser.add_argument(
+        "-s",
+        "--sample-id",
+        type=str,
+        required=True,
+        help="Sample ID"
+    )
+    parser.add_argument(
+        "-o",
+        "--output",
+        type=str,
+        required=True,
+        help="Output file name for the Libraries CSV"
+    )
+
+    args = parser.parse_args()
+
+    main(args)

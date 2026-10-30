@@ -1,0 +1,129 @@
+#!/usr/bin/env python3
+
+import argparse
+import anndata
+import pandas as pd
+import mudata as md
+import hdf5plugin
+
+
+UNKNOWN_LABEL = "Unknown"
+MULTIOME_CELL_TYPE_KEY = "multiome_cell_type"
+
+
+def harvest_labels(mdata: md.MuData, label_key: str):
+    """
+    The label column from the RNA modality, which joint_qc built from the
+    scANVI-labeled RNA object.
+    """
+    rna = mdata.mod["rna"]
+    if label_key not in rna.obs:
+        raise ValueError(
+            f"'{label_key}' not found in the RNA modality's obs. "
+            f"Available: {list(rna.obs.columns)}."
+        )
+    labels = rna.obs[label_key].astype(str)
+    print(f"Harvested {labels.nunique()} distinct '{label_key}' labels "
+          f"from {len(labels)} RNA cells")
+    return labels
+
+
+def plain_string_index(mdata):
+    """
+    Force obs and var indices to plain object dtype, on the MuData and every mod.
+
+    anndata >= 0.11 refuses to write pandas nullable string arrays without an
+    explicit opt-in, and indices inherit that dtype from whatever produced them
+    upstream. Indices never carry NA, so object dtype is the correct, portable form.
+    """
+    for frame in (mdata.obs, mdata.var):
+        frame.index = pd.Index(frame.index.to_numpy(dtype=object))
+    for mod in mdata.mod.values():
+        for frame in (mod.obs, mod.var):
+            frame.index = pd.Index(frame.index.to_numpy(dtype=object))
+    return mdata
+
+
+def transfer_labels(mdata: md.MuData, labels):
+    """
+    Attach the RNA-derived labels as multiome_cell_type on the shared
+    observation axis and both modalities. The RNA modality's MapMyCells
+    cell_type is left as it is. Paired cells without a label are KEPT and
+    marked 'Unknown' rather than dropped.
+    """
+    rna = mdata.mod["rna"]
+    atac = mdata.mod["atac"]
+
+    # Reindex the harvested labels onto the paired barcode set
+    joint = labels.reindex(mdata.obs_names)
+    joint = joint.where(joint != "nan")
+    n_total = mdata.n_obs
+    n_missing = int(joint.isna().sum())
+    joint = joint.fillna(UNKNOWN_LABEL)
+
+    frac_missing = n_missing / n_total if n_total else 0.0
+    print(f"Coverage: {n_total - n_missing}/{n_total} paired cells labeled "
+          f"({frac_missing:.1%} marked '{UNKNOWN_LABEL}')")
+    if frac_missing > 0.5:
+        # Not fatal, but the label column is mostly missing on the RNA side --
+        # warn loudly.
+        print(f"WARNING: over half of paired cells got '{UNKNOWN_LABEL}'. "
+              f"Check that the RNA modality carries the scANVI label column.")
+
+    joint = joint.astype("category")
+
+    mdata.obs[MULTIOME_CELL_TYPE_KEY] = joint.values
+    atac.obs[MULTIOME_CELL_TYPE_KEY] = joint.reindex(atac.obs_names).values
+    rna.obs[MULTIOME_CELL_TYPE_KEY] = joint.reindex(rna.obs_names).values
+
+    print(mdata.obs[MULTIOME_CELL_TYPE_KEY].value_counts().to_string())
+    return mdata
+
+
+def main(args):
+    # Any string array that is still nullable gets written in the legacy,
+    # widely-readable format rather than failing the task.
+    anndata.settings.allow_write_nullable_strings = False
+
+    mdata = md.read_h5mu(args.mudata_input)
+
+    labels = harvest_labels(mdata, args.label_key)
+    mdata = transfer_labels(mdata, labels)
+    mdata = plain_string_index(mdata)
+
+    mdata.write(
+        filename=args.mudata_output,
+        compression="lzf"
+    )
+    print(f"Wrote {args.mudata_output}")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Set the paired Multiome MuData's multiome_cell_type from the RNA modality's scANVI labels"
+    )
+    parser.add_argument(
+        "-a",
+        "--mudata-input",
+        type=str,
+        required=True,
+        help="MuData (.h5mu) object for a dataset",
+    )
+    parser.add_argument(
+        "-k",
+        "--label-key",
+        type=str,
+        default="C_scANVI",
+        help="RNA modality obs column carrying the cell-type label to copy to multiome_cell_type [C_scANVI]",
+    )
+    parser.add_argument(
+        "-o",
+        "--mudata-output",
+        type=str,
+        required=True,
+        help="Output file name for saving the annotated MuData object",
+    )
+
+    args = parser.parse_args()
+
+    main(args)

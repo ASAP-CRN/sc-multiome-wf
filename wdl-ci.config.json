@@ -1,0 +1,622 @@
+{
+  "workflows": {
+    "workflows/cohort_analysis/cohort_analysis.wdl": {
+      "key": "workflows/cohort_analysis/cohort_analysis.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {
+        "joint_qc": {
+          "key": "joint_qc",
+          "digest": "odfbnozzpl7izxhgha6tdazrj3geqijr",
+          "tests": [
+            {
+              "inputs": {
+                "cohort_id": "${cohort_id}",
+                "labeled_cells_rna_adata_object": "${input_resources_file_path}/${cohort_id}.scanvi_labeled.h5ad",
+                "atac_peaks_matrix_adata_object": "${input_resources_file_path}/${cohort_id}.harmony.leiden.peaks_matrix.h5ad",
+                "per_barcode_metrics_csvs": [
+                  "${input_resources_file_path}/${preprocess_workflow_name}/multiome/${dataset_sample_id}.per_barcode_metrics.csv"
+                ],
+                "min_overlap_frac": 0.5,
+                "min_peak_cell_frac": 0.01,
+                "raw_data_path": "${cohort_raw_data_path}",
+                "workflow_info": "${workflow_info}",
+                "billing_project": "${billing_project}",
+                "container_registry": "${container_registry}",
+                "zones": "${zones}"
+              },
+              "output_tests": {
+                "filtered_mudata_object": {
+                  "value": "${input_resources_file_path}/${cohort_workflow_name}/multiome/${cohort_id}.filtered.h5mu",
+                  "test_tasks": [
+                    "compare_file_basename",
+                    "check_hdf5"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "annotate_and_transfer": {
+          "key": "annotate_and_transfer",
+          "digest": "zwyssztfgpafdbv27x5jbxoexvo4qoj2",
+          "tests": [
+            {
+              "inputs": {
+                "cohort_id": "${cohort_id}",
+                "multivi_clustered_mudata_object": "${input_resources_file_path}/${cohort_workflow_name}/multiome/${cohort_id}.multivi_clustered.h5mu",
+                "scanvi_predictions_key": "C_scANVI",
+                "container_registry": "${container_registry}",
+                "zones": "${zones}"
+              },
+              "output_tests": {
+                "annotated_mudata_object": {
+                  "value": "${input_resources_file_path}/${cohort_workflow_name}/multiome/${cohort_id}.annotated.h5mu",
+                  "test_tasks": [
+                    "compare_file_basename",
+                    "check_hdf5"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "parse_feature_linkage": {
+          "key": "parse_feature_linkage",
+          "digest": "emgvmxbsna4qg22nxc2d3zofak37pmlh",
+          "tests": [
+            {
+              "inputs": {
+                "cohort_id": "${cohort_id}",
+                "cellranger_arc_feature_linkage_bedpe": [
+                  "${input_resources_file_path}/${preprocess_workflow_name}/multiome/${dataset_sample_id}.feature_linkage.bedpe"
+                ],
+                "annotated_mudata_object": "${input_resources_file_path}/${cohort_workflow_name}/multiome/${cohort_id}.annotated.h5mu",
+                "peak_gene_only": true,
+                "min_linkage_corr": 0.1,
+                "min_linkage_sig": 0.0,
+                "raw_data_path": "${cohort_raw_data_path}",
+                "workflow_info": "${workflow_info}",
+                "billing_project": "${billing_project}",
+                "container_registry": "${container_registry}",
+                "zones": "${zones}"
+              },
+              "output_tests": {
+                "final_mudata_object": {
+                  "value": "${input_resources_file_path}/${cohort_workflow_name}/multiome/${cohort_id}.final.h5mu",
+                  "test_tasks": [
+                    "compare_file_basename",
+                    "check_hdf5"
+                  ]
+                },
+                "feature_linkage_csv": {
+                  "value": "${input_resources_file_path}/${cohort_workflow_name}/multiome/${cohort_id}.feature_linkage_per_sample.csv",
+                  "test_tasks": [
+                    "compare_file_basename",
+                    "check_empty_lines",
+                    "check_comma_separated",
+                    "count_columns"
+                  ]
+                },
+                "final_metadata_csv": {
+                  "value": "${input_resources_file_path}/${cohort_workflow_name}/multiome/${cohort_id}.final_metadata.csv",
+                  "test_tasks": [
+                    "compare_file_basename",
+                    "check_empty_lines",
+                    "check_comma_separated",
+                    "count_columns"
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "workflows/cohort_analysis/multivi_integration/multivi_integration.wdl": {
+      "key": "workflows/cohort_analysis/multivi_integration/multivi_integration.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {
+        "integrate_multivi": {
+          "key": "integrate_multivi",
+          "digest": "mrk6iq2qcuowks6fqv2aihkjubol5fjv",
+          "tests": [
+            {
+              "inputs": {
+                "cohort_id": "${cohort_id}",
+                "filtered_mudata_object": "${input_resources_file_path}/${cohort_workflow_name}/multiome/${cohort_id}.filtered.h5mu",
+                "batch_key": "${batch_key}",
+                "multivi_latent_key": "${multivi_latent_key}",
+                "multivi_max_epochs": "${multivi_max_epochs}",
+                "multivi_n_hidden": "${multivi_n_hidden}",
+                "multivi_batch_size": "${multivi_batch_size}",
+                "raw_data_path": "${cohort_raw_data_path}",
+                "workflow_info": "${workflow_info}",
+                "billing_project": "${billing_project}",
+                "container_registry": "${container_registry}",
+                "zones": "${zones}"
+              },
+              "output_tests": {
+                "multivi_integrated_mudata_object": {
+                  "value": "${input_resources_file_path}/${cohort_workflow_name}/multiome/${cohort_id}.multivi_integrated.h5mu",
+                  "test_tasks": [
+                    "compare_file_basename",
+                    "check_hdf5"
+                  ]
+                },
+                "multivi_model_tar_gz": {
+                  "value": "${input_resources_file_path}/${cohort_workflow_name}/multiome/${cohort_id}.multivi_model.tar.gz",
+                  "test_tasks": [
+                    "compare_file_basename",
+                    "check_gzip"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "cluster_multivi": {
+          "key": "cluster_multivi",
+          "digest": "jo6mmgi6a7237t3wtjnel5ukjviwcajp",
+          "tests": [
+            {
+              "inputs": {
+                "cohort_id": "${cohort_id}",
+                "multivi_integrated_mudata_object": "${input_resources_file_path}/${cohort_workflow_name}/multiome/${cohort_id}.multivi_integrated.h5mu",
+                "multivi_latent_key": "${multivi_latent_key}",
+                "n_neighbors": 15,
+                "leiden_res": [
+                  0.2,
+                  0.5,
+                  1.0
+                ],
+                "raw_data_path": "${cohort_raw_data_path}",
+                "workflow_info": "${workflow_info}",
+                "billing_project": "${billing_project}",
+                "container_registry": "${container_registry}",
+                "zones": "${zones}"
+              },
+              "output_tests": {
+                "multivi_clustered_mudata_object": {
+                  "value": "${input_resources_file_path}/${cohort_workflow_name}/multiome/${cohort_id}.multivi_clustered.h5mu",
+                  "test_tasks": [
+                    "compare_file_basename",
+                    "check_hdf5"
+                  ]
+                },
+                "multivi_clustered_umap_png": {
+                  "value": "${input_resources_file_path}/${cohort_workflow_name}/multiome/${cohort_id}.multivi_umap.png",
+                  "test_tasks": [
+                    "compare_file_basename",
+                    "png_validator",
+                    "image_validator"
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "workflows/preprocess/preprocess.wdl": {
+      "key": "workflows/preprocess/preprocess.wdl",
+      "name": "",
+      "description": "",
+      "tasks": {
+        "cellranger_arc_count": {
+          "key": "cellranger_arc_count",
+          "digest": "vmqlnve6ceas4cey35duqrfdge7zxj3o",
+          "tests": [
+            {
+              "inputs": {
+                "dataset_sample_id": "${dataset_sample_id}",
+                "sample_id": "${pool_id}",
+                "fastq_R1s": [
+                  "gs://asap-raw-team-voet-pmdbs-sn-multimodal/fastqs/atac/NextSeq2000_20210603_ASA__811eca__20210527_10xMO-atac_asaEZ_S1_L001_R1_001.fastq.gz",
+                  "gs://asap-raw-team-voet-pmdbs-sn-multimodal/fastqs/rna/NextSeq500_20210616_ASA__c42f86__20210527_10xMO-RNA_asaEZ_S1_L001_R1_001.fastq.gz"
+                ],
+                "fastq_R2s": [
+                  "gs://asap-raw-team-voet-pmdbs-sn-multimodal/fastqs/atac/NextSeq2000_20210603_ASA__811eca__20210527_10xMO-atac_asaEZ_S1_L001_R3_001.fastq.gz",
+                  "gs://asap-raw-team-voet-pmdbs-sn-multimodal/fastqs/rna/NextSeq500_20210616_ASA__c42f86__20210527_10xMO-RNA_asaEZ_S1_L001_R2_001.fastq.gz"
+                ],
+                "fastq_I1s": [],
+                "fastq_I2s": [
+                  "gs://asap-raw-team-voet-pmdbs-sn-multimodal/fastqs/atac/NextSeq2000_20210603_ASA__811eca__20210527_10xMO-atac_asaEZ_S1_L001_R2_001.fastq.gz"
+                ],
+                "cellranger_arc_reference_data": "gs://asap-workflow-dev/workflow-resources/refdata-cellranger-arc-GRCh38-2024-A.tar.gz",
+                "raw_data_path": "${cellranger_arc_raw_data_path}",
+                "workflow_info": "${workflow_info}",
+                "billing_project": "${billing_project}",
+                "container_registry": "${container_registry}",
+                "zones": "${zones}"
+              },
+              "output_tests": {
+                "multiome_outputs_tar_gz": {
+                  "value": "${input_resources_file_path}/${preprocess_workflow_name}/multiome/${dataset_sample_id}.cellranger_arc_multiome_outputs.tar.gz",
+                  "test_tasks": [
+                    "compare_file_basename",
+                    "check_gzip"
+                  ]
+                },
+                "raw_counts": {
+                  "value": "${input_resources_file_path}/${preprocess_workflow_name}/multiome/${dataset_sample_id}.raw_feature_bc_matrix.h5",
+                  "test_tasks": [
+                    "compare_file_basename",
+                    "check_hdf5"
+                  ]
+                },
+                "filtered_counts": {
+                  "value": "${input_resources_file_path}/${preprocess_workflow_name}/multiome/${dataset_sample_id}.filtered_feature_bc_matrix.h5",
+                  "test_tasks": [
+                    "compare_file_basename",
+                    "check_hdf5"
+                  ]
+                },
+                "gex_molecule_info": {
+                  "value": "${input_resources_file_path}/${preprocess_workflow_name}/multiome/${dataset_sample_id}.gex_molecule_info.h5",
+                  "test_tasks": [
+                    "compare_file_basename",
+                    "check_hdf5"
+                  ]
+                },
+                "metrics_summary_csv": {
+                  "value": "${input_resources_file_path}/${preprocess_workflow_name}/multiome/${dataset_sample_id}.summary.csv",
+                  "test_tasks": [
+                    "compare_file_basename",
+                    "check_empty_lines",
+                    "check_comma_separated",
+                    "count_columns"
+                  ]
+                },
+                "per_barcode_metrics_summary_csv": {
+                  "value": "${input_resources_file_path}/${preprocess_workflow_name}/multiome/${dataset_sample_id}.per_barcode_metrics.csv",
+                  "test_tasks": [
+                    "compare_file_basename",
+                    "check_empty_lines",
+                    "check_comma_separated",
+                    "count_columns"
+                  ]
+                },
+                "gex_possorted_bam": {
+                  "value": "${input_resources_file_path}/${preprocess_workflow_name}/multiome/${dataset_sample_id}.gex_possorted_bam.bam",
+                  "test_tasks": [
+                    "compare_file_basename",
+                    "check_coordinate_sorted_alignment",
+                    "samtools_quickcheck"
+                  ]
+                },
+                "gex_possorted_bam_index": {
+                  "value": "${input_resources_file_path}/${preprocess_workflow_name}/multiome/${dataset_sample_id}.gex_possorted_bam.bam.bai",
+                  "test_tasks": [
+                    "compare_file_basename"
+                  ]
+                },
+                "atac_possorted_bam": {
+                  "value": "${input_resources_file_path}/${preprocess_workflow_name}/multiome/${dataset_sample_id}.atac_possorted_bam.bam",
+                  "test_tasks": [
+                    "compare_file_basename",
+                    "check_coordinate_sorted_alignment",
+                    "samtools_quickcheck"
+                  ]
+                },
+                "atac_possorted_bam_index": {
+                  "value": "${input_resources_file_path}/${preprocess_workflow_name}/multiome/${dataset_sample_id}.atac_possorted_bam.bam.bai",
+                  "test_tasks": [
+                    "compare_file_basename"
+                  ]
+                },
+                "atac_fragments_tsv_gz": {
+                  "value": "${input_resources_file_path}/${preprocess_workflow_name}/multiome/${dataset_sample_id}.atac_fragments.tsv.gz",
+                  "test_tasks": [
+                    "compare_file_basename",
+                    "check_gzip"
+                  ]
+                },
+                "atac_fragments_tsv_gz_tbi": {
+                  "value": "${input_resources_file_path}/${preprocess_workflow_name}/multiome/${dataset_sample_id}.atac_fragments.tsv.gz.tbi",
+                  "test_tasks": [
+                    "compare_file_basename",
+                    "check_gzip",
+                    "check_tbi_index"
+                  ]
+                },
+                "atac_peaks_bed": {
+                  "value": "${input_resources_file_path}/${preprocess_workflow_name}/multiome/${dataset_sample_id}.atac_peaks.bed",
+                  "test_tasks": [
+                    "compare_file_basename",
+                    "check_empty_lines"
+                  ]
+                },
+                "atac_cut_sites_bigwig": {
+                  "value": "${input_resources_file_path}/${preprocess_workflow_name}/multiome/${dataset_sample_id}.atac_cut_sites.bigwig",
+                  "test_tasks": [
+                    "compare_file_basename",
+                    "bigwig_validator"
+                  ]
+                },
+                "atac_peak_annotation_tsv": {
+                  "value": "${input_resources_file_path}/${preprocess_workflow_name}/multiome/${dataset_sample_id}.atac_peak_annotation.tsv",
+                  "test_tasks": [
+                    "compare_file_basename",
+                    "check_empty_lines",
+                    "check_tab_delimited",
+                    "count_columns"
+                  ]
+                },
+                "feature_linkage_bedpe": {
+                  "value": "${input_resources_file_path}/${preprocess_workflow_name}/multiome/${dataset_sample_id}.feature_linkage.bedpe",
+                  "test_tasks": [
+                    "compare_file_basename",
+                    "check_empty_lines"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "rna_remove_technical_artifacts": {
+          "key": "rna_remove_technical_artifacts",
+          "digest": "ar6aectvlw5dz2mp6mupp54p6kdjlyma",
+          "tests": [
+            {
+              "inputs": {
+                "dataset_sample_id": "${dataset_sample_id}",
+                "raw_counts": "${input_resources_file_path}/${preprocess_workflow_name}/multiome/${dataset_sample_id}.raw_feature_bc_matrix.h5",
+                "cellbender_fpr": 0.0,
+                "raw_data_path": "${rna_cellbender_raw_data_path}",
+                "workflow_info": "${workflow_info}",
+                "billing_project": "${billing_project}",
+                "container_registry": "${container_registry}",
+                "zones": "${zones}"
+              },
+              "output_tests": {
+                "report_html": {
+                  "value": "${input_resources_file_path}/${preprocess_workflow_name}/rna/${dataset_sample_id}.cellbender_report.html",
+                  "test_tasks": [
+                    "compare_file_basename",
+                    "check_html"
+                  ]
+                },
+                "removed_background_counts": {
+                  "value": "${input_resources_file_path}/${preprocess_workflow_name}/rna/${dataset_sample_id}.cellbender.h5",
+                  "test_tasks": [
+                    "compare_file_basename",
+                    "check_hdf5"
+                  ]
+                },
+                "filtered_removed_background_counts": {
+                  "value": "${input_resources_file_path}/${preprocess_workflow_name}/rna/${dataset_sample_id}.cellbender_filtered.h5",
+                  "test_tasks": [
+                    "compare_file_basename",
+                    "check_hdf5"
+                  ]
+                },
+                "cell_barcodes_csv": {
+                  "value": "${input_resources_file_path}/${preprocess_workflow_name}/rna/${dataset_sample_id}.cellbender_cell_barcodes.csv",
+                  "test_tasks": [
+                    "compare_file_basename",
+                    "check_empty_lines",
+                    "count_columns"
+                  ]
+                },
+                "graph_pdf": {
+                  "value": "${input_resources_file_path}/${preprocess_workflow_name}/rna/${dataset_sample_id}.cellbender.pdf",
+                  "test_tasks": [
+                    "compare_file_basename",
+                    "pdf_validator"
+                  ]
+                },
+                "log": {
+                  "value": "${input_resources_file_path}/${preprocess_workflow_name}/rna/${dataset_sample_id}.cellbender.log",
+                  "test_tasks": [
+                    "compare_file_basename"
+                  ]
+                },
+                "metrics_csv": {
+                  "value": "${input_resources_file_path}/${preprocess_workflow_name}/rna/${dataset_sample_id}.cellbender_metrics.csv",
+                  "test_tasks": [
+                    "compare_file_basename",
+                    "check_empty_lines",
+                    "check_comma_separated",
+                    "count_columns"
+                  ]
+                },
+                "posterior_probability": {
+                  "value": "${input_resources_file_path}/${preprocess_workflow_name}/rna/${dataset_sample_id}.cellbend_posterior.h5",
+                  "test_tasks": [
+                    "compare_file_basename",
+                    "check_hdf5"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "rna_demux_counts": {
+          "key": "rna_demux_counts",
+          "digest": "6jlnqt3frwo3dr4mfqc7oba7uneq5wmw",
+          "tests": [
+            {
+              "inputs": {
+                "dataset_id": "${asap_dataset_id}",
+                "pool_id": "${pool_id}",
+                "source_subject_ids": [
+                  "${source_subject_id}",
+                  "ASA_015"
+                ],
+                "sample_ids": [
+                  "${sample_id}",
+                  "ASAP_PMDBS_001088_s002_BiolRep2"
+                ],
+                "cellbender_counts": "${input_resources_file_path}/${preprocess_workflow_name}/rna/${dataset_sample_id}.cellbender.h5",
+                "vireo_assignment_files": [
+                  "gs://asap-raw-team-voet-pmdbs-sn-multimodal/artifacts/vireo_assignment_260324_final_CC_demultiplexing.csv",
+                  "gs://asap-raw-team-voet-pmdbs-sn-multimodal/artifacts/vireo_assignment_260324_final_SN_demultiplexing.csv"
+                ],
+                "raw_data_path": "${rna_demux_counts_raw_data_path}",
+                "workflow_info": "${workflow_info}",
+                "billing_project": "${billing_project}",
+                "container_registry": "${container_registry}",
+                "zones": "${zones}"
+              },
+              "output_tests": {
+                "sample_demux_cellbender_counts": {
+                  "value": [
+                    "${input_resources_file_path}/${preprocess_workflow_name}/rna/${asap_dataset_id}.${sample_id}.${pool_id}.demux_counts.h5ad"
+                  ],
+                  "test_tasks": [
+                    "compare_file_basename",
+                    "check_hdf5"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "counts_to_adata": {
+          "key": "counts_to_adata",
+          "digest": "5e56m7r7h4nix5pecyl47fygxagmf77b",
+          "tests": [
+            {
+              "inputs": {
+                "team_id": "${cohort_id}",
+                "dataset_id": "${asap_dataset_id}",
+                "sample_id": "${sample_id}",
+                "batch": "${batch}",
+                "sex": "${sex}",
+                "brain_region_level_1": "${brain_region_level_1}",
+                "brain_region_level_2": "${brain_region_level_2}",
+                "brain_region_level_3": "${brain_region_level_3}",
+                "pool_id": "${pool_id}",
+                "source_subject_id": "${source_subject_id}",
+                "subject_id": "${asap_subject_id}",
+                "cellbender_counts": "${input_resources_file_path}/${preprocess_workflow_name}/rna/${dataset_sample_id}.cellbender.h5",
+                "raw_data_path": "${rna_demux_adata_raw_data_path}",
+                "workflow_info": "${workflow_info}",
+                "billing_project": "${billing_project}",
+                "container_registry": "${container_registry}",
+                "zones": "${zones}"
+              },
+              "output_tests": {
+                "initial_adata_object": {
+                  "value": "${input_resources_file_path}/${preprocess_workflow_name}/rna/${asap_dataset_id}.${sample_id}.${pool_id}.cleaned_unfiltered.h5ad",
+                  "test_tasks": [
+                    "compare_file_basename",
+                    "check_hdf5"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "fragments_to_adata": {
+          "key": "fragments_to_adata",
+          "digest": "j3ulxmg4sctx6u6iyoyce277mitsivdx",
+          "tests": [
+            {
+              "inputs": {
+                "team_id": "${cohort_id}",
+                "dataset_id": "${asap_dataset_id}",
+                "sample_id": "${sample_id}",
+                "batch": "${batch}",
+                "sex": "${sex}",
+                "brain_region_level_1": "${brain_region_level_1}",
+                "brain_region_level_2": "${brain_region_level_2}",
+                "brain_region_level_3": "${brain_region_level_3}",
+                "pool_id": "${pool_id}",
+                "source_subject_id": "${source_subject_id}",
+                "subject_id": "${asap_subject_id}",
+                "fragments_tsv_gz": "${input_resources_file_path}/${preprocess_workflow_name}/multiome/${dataset_sample_id}.atac_fragments.tsv.gz",
+                "raw_data_path": "${atac_demux_adata_raw_data_path}",
+                "workflow_info": "${workflow_info}",
+                "billing_project": "${billing_project}",
+                "container_registry": "${container_registry}",
+                "zones": "${zones}"
+              },
+              "output_tests": {
+                "initial_adata_object": {
+                  "value": "${input_resources_file_path}/${preprocess_workflow_name}/atac/${asap_dataset_id}.${sample_id}.${pool_id}.cleaned_unfiltered.h5ad",
+                  "test_tasks": [
+                    "compare_file_basename",
+                    "check_hdf5"
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  "engines": {
+    "asap-cromwell": {
+      "key": "asap-cromwell",
+      "enabled": true,
+      "name": ""
+    }
+  },
+  "test_params": {
+    "global_params": {
+      "cohort_id": "team-voet",
+      "asap_dataset_id": "DS_PMDBS_0036",
+      "pool_id": "MO001a",
+      "source_subject_id": "ASA_014",
+      "asap_subject_id": "ASAP_PMDBS_001087",
+      "sample_id": "ASAP_PMDBS_001087_s002_BiolRep1",
+      "batch": "Batch1",
+      "sex": "female",
+      "brain_region_level_1": "cingulate gyrus (cg, uberon:0002967)",
+      "brain_region_level_2": "anterior cingulate gyrus (acg, uberon:0002756)",
+      "brain_region_level_3": "NA",
+      "project_sample_ids": [
+        [
+          "team-voet",
+          "ASAP_PMDBS_001087_s002_BiolRep1.MO001a",
+          "https://doi.org/10.5281/zenodo.18988753"
+        ],
+        [
+          "team-voet",
+          "ASAP_PMDBS_001088_s002_BiolRep2.MO001a",
+          "https://doi.org/10.5281/zenodo.18988753"
+        ]
+      ],
+      "dataset_sample_id": "${asap_dataset_id}.${pool_id}",
+      "workflow_name": "pmdbs_sc_multiome",
+      "workflow_version": "v1.0.0",
+      "workflow_release": "https://github.com/ASAP-CRN/sc-multiome-wf/releases/tag/sc_multiome_analysis-~{workflow_version}",
+      "workflow_info": [
+        [
+          "${run_timestamp}",
+          "${workflow_name}",
+          "${workflow_version}",
+          "${workflow_release}"
+        ]
+      ],
+      "cellranger_arc_raw_data_path": "gs://asap-wdl-ci/workflow_execution/${workflow_name}/preprocess/multiome/cellranger_arc/1.0.0",
+      "rna_cellbender_raw_data_path": "gs://asap-wdl-ci/workflow_execution/${workflow_name}/preprocess/rna/remove_technical_artifacts/1.0.0",
+      "rna_demux_counts_raw_data_path": "gs://asap-wdl-ci/workflow_execution/${workflow_name}/preprocess/rna/split_demux_counts/1.0.0",
+      "rna_demux_adata_raw_data_path": "gs://asap-wdl-ci/workflow_execution/${workflow_name}/preprocess/rna/counts_to_adata/1.0.0",
+      "atac_demux_adata_raw_data_path": "gs://asap-wdl-ci/workflow_execution/${workflow_name}/preprocess/atac/fragments_to_adata/1.0.0",
+      "preprocess_workflow_name": "preprocess",
+      "cohort_raw_data_path": "gs://asap-wdl-ci/workflow_execution/${workflow_name}/${cohort_workflow_name}/${cohort_workflow_version}/${run_timestamp}",
+      "run_timestamp": "2026-09-28-T00-00-00Z",
+      "cohort_workflow_name": "cohort_analysis",
+      "cohort_workflow_version": "1.0.0",
+      "batch_key": "batch_id",
+      "multivi_latent_key": "X_multiVI",
+      "multivi_max_epochs": 300,
+      "multivi_n_hidden": 128,
+      "multivi_batch_size": 128,
+      "billing_project": "dnastack-asap-parkinsons",
+      "container_registry": "us-central1-docker.pkg.dev/dnastack-asap-parkinsons/workflow-images",
+      "zones": "us-central1-c us-central1-f"
+    },
+    "engine_params": {
+      "asap-cromwell": {
+        "input_file_path": "gs://asap-workflow-dev/workflow-resources",
+        "input_resources_file_path": "gs://asap-wdl-ci/${workflow_name}"
+      }
+    }
+  }
+}

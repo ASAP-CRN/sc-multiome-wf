@@ -1,0 +1,307 @@
+#!/usr/bin/env python3
+
+import os
+import argparse
+import pandas as pd
+import mudata as md
+import hdf5plugin
+
+
+PEAK_GENE_TYPES = ("peak-gene", "gene-peak")
+
+BEDPE_COLUMNS = [
+    "chrom1", "start1", "end1",
+    "chrom2", "start2", "end2",
+    "name", "score", "strand1", "strand2",
+    "significance", "distance", "linkage_type",
+]
+
+
+def sample_id_from_filename(path: str):
+    base = os.path.basename(path)
+    base = base.replace(".feature_linkage.bedpe", "")
+    # base is now '{dataset_id}.{sample_id}'; take the trailing sample id
+    parts = base.split(".")
+    return parts[-1]
+
+
+def parse_one_bedpe(bedpe_path: str, sample_id: str, keep_peak_and_gene_only: bool):
+    """Read one sample's Cell Ranger ARC feature_linkage.bedpe and stamp it with
+    its sample id. Each row links two loci; 'name' holds a <feature1><feature2>
+    pair, 'score' is the linkage correlation, 'significance' the significance,
+    'distance' the bp between features, 'linkage_type' one of peak-gene /
+    peak-peak / gene-gene.
+
+    https://www.10xgenomics.com/support/software/cell-ranger-arc/latest/analysis/outputs/multiome-atac-gene-expression-analysis#feature-linkage-bedpe
+    """
+    links = pd.read_csv(bedpe_path, sep="\t", header=None, names=BEDPE_COLUMNS)
+
+    names = links["name"].str.strip("<>").str.split("><", expand=True)
+    links["feature1"] = names[0]
+    links["feature2"] = names[1]
+    links["sample_id"] = sample_id
+
+    if keep_peak_and_gene_only:
+        # ARC reports both orientations -- 'peak-gene' and 'gene-peak' -- depending on
+        # which locus lands in feature1. Matching only one drops about half the links.
+        links = links[links["linkage_type"].isin(PEAK_GENE_TYPES)]
+
+    # Orientation-normalised columns so downstream never has to care which side is
+    # which; left NA for peak-peak rows, where the distinction does not apply.
+    gene_first = links["linkage_type"] == "gene-peak"
+    is_peak_gene = links["linkage_type"].isin(PEAK_GENE_TYPES)
+    links["peak"] = links["feature1"].where(~gene_first, links["feature2"]).where(is_peak_gene)
+    links["gene"] = links["feature2"].where(~gene_first, links["feature1"]).where(is_peak_gene)
+
+    counts = links["linkage_type"].value_counts().to_dict()
+    print(f"  {sample_id}: {counts}")
+
+    return links.reset_index(drop=True)
+
+
+def candidate_id_columns(mdata: md.MuData, key: str):
+    """
+    Every place a per-cell id column named `key` can live in a MuData: promoted to
+    the top level, kept per-modality as '<mod>:<key>', or only inside a modality.
+    MuData only promotes a column to .obs when the modalities agree on it, so the
+    bare name is often absent.
+    """
+    found = []
+    if key in mdata.obs:
+        found.append((f"obs['{key}']", mdata.obs[key]))
+    for name in mdata.mod:
+        prefixed = f"{name}:{key}"
+        if prefixed in mdata.obs:
+            found.append((f"obs['{prefixed}']", mdata.obs[prefixed]))
+    for name, mod in mdata.mod.items():
+        if key in mod.obs:
+            found.append((f"mod['{name}'].obs['{key}']", mod.obs[key].reindex(mdata.obs_names)))
+    return found
+
+
+def resolve_sample_ids(mdata: md.MuData, file_ids: set, sample_key: str):
+    """
+    Find the per-cell id column the BEDPE filenames correspond to.
+
+    Cell Ranger ARC runs once per pool, so BEDPEs are named {dataset_id}.{pool_id}
+    for pooled data and {dataset_id}.{sample_id} otherwise. Demultiplexed objects
+    carry the donor in 'sample' and the pool in 'pool', so prefer whichever column
+    actually contains the ids in the filenames.
+
+    A run can have no paired cells (all removed by QC or the Cell Ranger ARC cell
+    call), so if no column contains every BEDPE id, use the one matching the most.
+    """
+    searched = []
+    best = None
+    for key in [sample_key] + [k for k in ("pool", "sample") if k != sample_key]:
+        for where, series in candidate_id_columns(mdata, key):
+            values = set(series.astype(str).unique())
+            n_matched = len(file_ids & values)
+            searched.append(f"{where} ({len(values)} ids, {n_matched} matching BEDPEs)")
+            if file_ids <= values:
+                print(f"BEDPE ids resolved against {where}")
+                return series.astype(str)
+            if n_matched > 0 and (best is None or n_matched > best[0]):
+                best = (n_matched, where, series)
+
+    if best is not None:
+        n_matched, where, series = best
+        print(f"BEDPE ids resolved against {where} ({n_matched} of {len(file_ids)} BEDPEs match)")
+        return series.astype(str)
+
+    raise ValueError(
+        f"No per-cell id column contains any of the BEDPE ids {sorted(file_ids)}. "
+        f"BEDPEs are named per Cell Ranger ARC run -- by pool for pooled data, "
+        f"by sample otherwise. Searched: {searched or 'nothing found'}."
+    )
+
+
+def stack_linkages(
+    mdata: md.MuData, bedpe_paths, sample_key: str, corr_threshold: float,
+    significance_threshold: float, keep_peak_and_gene_only: bool
+):
+    """Stack per-sample BEDPEs into one long, sample-stamped table.
+
+    Peaks are called per sample (per-sample ARC peak calls), so peak names are
+    NOT comparable across samples and we deliberately do not collapse to a
+    cross-sample consensus.
+    """
+    file_ids = {sample_id_from_filename(p) for p in bedpe_paths}
+    sample_ids = resolve_sample_ids(mdata, file_ids, sample_key)
+
+    obs_samples = set(sample_ids.unique())
+    print(f"Sample IDs in merged object: {sorted(obs_samples)}")
+
+    frames = []
+    seen = set()
+    skipped = []
+    for path in bedpe_paths:
+        sid = sample_id_from_filename(path)
+        if sid not in obs_samples:
+            skipped.append(sid)
+            continue
+        seen.add(sid)
+        df = parse_one_bedpe(path, sid, keep_peak_and_gene_only)
+        print(f"  {sid}: {len(df)} linkages")
+        frames.append(df)
+
+    if skipped:
+        print(f"[WARNING] Skipped {len(skipped)} BEDPE(s) with no paired cells in the MuData: {sorted(skipped)}")
+
+    missing = obs_samples - seen
+    if missing:
+        print(f"[WARNING] No BEDPE provided for samples present in obs: {sorted(missing)}")
+
+    if not frames:
+        raise ValueError("None of the BEDPEs match the paired cells in the MuData.")
+
+    links = pd.concat(frames, ignore_index=True)
+
+    # Light per-row score/significance filter only (NOT a cross-sample filter)
+    links = links[
+        (links["score"].abs() >= corr_threshold)
+        & (links["significance"] >= significance_threshold)
+    ].reset_index(drop=True)
+
+    print(f"Total stacked linkages after filtering: {len(links)} "
+          f"across {links['sample_id'].nunique()} samples")
+    return links
+
+
+def combine_metadata(
+    mdata: md.MuData
+):
+    rna = mdata.mod["rna"].obs
+    atac = mdata.mod["atac"].obs
+
+    required = ["dataset", "sample", "batch", "sex", "team", "batch_id"]
+    optional = ["pool", "source_subject", "subject"]
+
+    shared = {}
+    for col in required + optional:
+        in_rna, in_atac = col in rna, col in atac
+        if not (in_rna or in_atac):
+            if col in required:
+                raise KeyError(f"'{col}' not found in rna or atac obs")
+            continue
+        if in_rna and in_atac:
+            a = rna[col].astype(str)
+            b = atac[col].reindex(rna.index).astype(str)
+            if not a.equals(b):
+                print(f"Warning: '{col}' differs between rna and atac "
+                      f"in {(a != b).sum()} cells; using rna values")
+        shared[col] = rna[col] if in_rna else atac[col]
+
+    shared = pd.DataFrame(shared)
+    drop = list(shared.columns) + ["multiome_cell_type"]  # multiome_cell_type already in mdata.obs
+
+    combined = pd.concat(
+        [
+            mdata.obs,
+            shared,
+            rna.drop(columns=drop, errors="ignore").add_prefix("rna:"),
+            atac.drop(columns=drop, errors="ignore").add_prefix("atac:"),
+        ],
+        axis=1,
+    )
+    combined.index.name = "barcode"
+    print(combined.columns.tolist())
+    return combined
+
+
+def main(args):
+    mdata = md.read_h5mu(args.mudata_input)
+
+    links = stack_linkages(
+        mdata, args.bedpe_inputs, args.sample_key, args.corr_threshold,
+        args.significance_threshold, args.peak_and_gene_only
+    )
+
+    links.to_csv(args.links_output, index=False)
+    print(f"Wrote {args.links_output}")
+
+    mdata.uns["feature_linkage_per_sample"] = links
+    mdata.write(
+        filename=args.mudata_output,
+        compression="lzf"
+    )
+    print(f"Wrote {args.mudata_output}")
+
+    print(f"Starting to export metadata for MuData...")
+    mdata
+    combined_metadata = combine_metadata(mdata)
+    combined_metadata.to_csv(args.metadata_output)
+    print(f"Wrote {args.metadata_output}")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Stack per-sample Cell Ranger ARC feature_linkage.bedpe files into the merged Multiome MuData and export final files"
+    )
+    parser.add_argument(
+        "-a",
+        "--mudata-input",
+        type=str,
+        required=True,
+        help="Merged MuData (.h5mu) object with paired 'rna' and 'atac' modalities",
+    )
+    parser.add_argument(
+        "-e",
+        "--bedpe-inputs",
+        type=str,
+        nargs="+",
+        required=True,
+        help="Per-sample Cell Ranger ARC feature_linkage.bedpe files (one per sample)",
+    )
+    parser.add_argument(
+        "-k",
+        "--sample-key",
+        type=str,
+        default="sample",
+        help="Preferred per-cell id column to match BEDPE filenames against; searched at the top level, as '<mod>:<key>', and inside each modality, falling back to 'pool' then 'sample' [sample]",
+    )
+    parser.add_argument(
+        "-g",
+        "--peak-and-gene-only",
+        action="store_true",
+        help="Keep only peak-gene and gene-peak linkages (drop peak-peak)",
+    )
+    parser.add_argument(
+        "-r",
+        "--corr-threshold",
+        type=float,
+        default=0.1,
+        help="Minimum absolute linkage correlation to retain [0.1]",
+    )
+    parser.add_argument(
+        "-s",
+        "--significance-threshold",
+        type=float,
+        default=0.0,
+        help="Minimum linkage significance to retain [0.0]",
+    )
+    parser.add_argument(
+        "-o",
+        "--mudata-output",
+        type=str,
+        required=True,
+        help="Output file name for saving the MuData object with linkage in uns",
+    )
+    parser.add_argument(
+        "-l",
+        "--links-output",
+        type=str,
+        required=True,
+        help="Output CSV file name for the stacked per-sample linkage table",
+    )
+    parser.add_argument(
+        "-m",
+        "--metadata-output",
+        type=str,
+        required=True,
+        help="Output CSV file name for the MuData combined metadata from Multiome, RNA, and ATAC obs",
+    )
+
+    args = parser.parse_args()
+
+    main(args)

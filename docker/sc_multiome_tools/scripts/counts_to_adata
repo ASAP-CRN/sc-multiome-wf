@@ -1,0 +1,217 @@
+#!/usr/bin/env python3
+
+import argparse
+from typing import Optional
+import scanpy as sc
+from cellbender.remove_background.downstream import anndata_from_h5
+
+MIN_CELLS_FOR_SCRUBLET = 100
+
+def gene_expression_only(adata: sc.AnnData) -> sc.AnnData:
+    """
+    Drop non-gene features from a cellranger-arc matrix.
+
+    CellBender's --exclude-feature-types Peaks stops it *modelling* peaks; the
+    output h5 still carries every original feature. Leaving them in would put ATAC
+    peaks in the RNA object, where they inflate n_genes_by_counts / total_counts
+    and every downstream gene-keyed join.
+    """
+    if "feature_type" not in adata.var:
+        print("No var['feature_type']; keeping all features")
+        return adata
+    keep = adata.var["feature_type"] == "Gene Expression"
+    print(f"Features: {int(keep.sum())} Gene Expression kept, {int((~keep).sum())} dropped "
+          f"({sorted(adata.var.loc[~keep, 'feature_type'].unique())})")
+    return adata[:, keep].copy()
+
+
+def prep_metadata(
+    adata: sc.AnnData,
+    team_id: str,
+    dataset_id: str,
+    sample_id: str,
+    batch: str,
+    sex: str,
+    brain_region_level_1: str,
+    brain_region_level_2: str,
+    brain_region_level_3: str,
+    pool_id: Optional[str] = None,
+    source_subject_id: Optional[str] = None,
+    subject_id: Optional[str] = None,
+):
+    # Set CPUs to use for parallel computing
+    sc.settings.n_jobs = -1
+
+    adata.var_names_make_unique()
+    adata.var["mt"] = adata.var_names.str.contains(r"^MT-", case=False, regex=True)
+    adata.var["rb"] = adata.var_names.str.contains(r"^(?:RPL|RPS|MRPL|MRPS)", case=False, regex=True)
+    sc.pp.calculate_qc_metrics(
+        adata,
+        qc_vars=["rb", "mt"],
+        percent_top=None,
+        log1p=False,
+        inplace=True,
+    )
+
+    try:
+        sc.pp.scrublet(adata)
+        # Keep the metadata clean and drop predicted_doublet; rely on the probability of doublet (i.e., doublet_score)
+        adata.obs.drop("predicted_doublet", axis=1, inplace=True)
+    except ValueError:
+        # A demultiplexed donor can have too few cells for Scrublet's PCA (n_prin_comps=30)
+        if adata.n_obs >= MIN_CELLS_FOR_SCRUBLET:
+            raise
+        print(f"[WARN] Only {adata.n_obs} cells; skipping Scrublet. doublet_score set to NaN, "
+              "so these cells are removed by the doublet_score_max filter")
+        adata.obs["doublet_score"] = float("nan")
+
+    print("Adding metadata to AnnData object")
+    adata.obs["sample"] = sample_id
+    adata.obs["batch"] = batch
+    adata.obs["sex"] = sex
+    adata.obs["brain_region_level_1"] = brain_region_level_1
+    adata.obs["brain_region_level_2"] = brain_region_level_2
+    adata.obs["brain_region_level_3"] = brain_region_level_3
+    adata.obs["team"] = team_id
+    adata.obs["dataset"] = dataset_id
+    adata.obs["batch_id"] = f"{team_id}_{dataset_id}_{batch}"
+
+    if pool_id is not None:
+        adata.obs["pool"] = pool_id
+        adata.obs["source_subject"] = source_subject_id
+        adata.obs["subject"] = subject_id
+
+    return adata
+
+
+def main(args):
+    if args.cellbender_counts.endswith(".h5ad"):
+        adata = sc.read_h5ad(
+            filename=args.cellbender_counts
+        )
+    else:
+        adata = anndata_from_h5(
+            args.cellbender_counts
+        )
+    adata.var_names_make_unique()
+    adata = gene_expression_only(adata)
+    adata = prep_metadata(
+        adata,
+        team_id=args.team_id,
+        dataset_id=args.dataset_id,
+        sample_id=args.sample_id,
+        batch=args.batch,
+        sex=args.sex,
+        brain_region_level_1=args.brain_region_level_1,
+        brain_region_level_2=args.brain_region_level_2,
+        brain_region_level_3=args.brain_region_level_3,
+        pool_id=args.pool_id,
+        source_subject_id=args.source_subject_id,
+        subject_id=args.subject_id,
+    )
+
+    adata.write_h5ad(
+        filename=args.adata_output
+    )
+    print(f"Wrote {args.adata_output}")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Convert Cell Ranger ARC RNA counts to sample-level AnnData objects"
+    )
+    parser.add_argument(
+        "-c",
+        "--cellbender-counts",
+        type=str,
+        required=True,
+        help="The Cellbender counts (.h5) or demultiplexed Cellbender counts (.h5ad)"
+    )
+    parser.add_argument(
+        "-t",
+        "--team-id",
+        type=str,
+        required=True,
+        help="CRN Team ID"
+    )
+    parser.add_argument(
+        "-d",
+        "--dataset-id",
+        type=str,
+        required=True,
+        help="ASAP dataset ID"
+    )
+    parser.add_argument(
+        "-s",
+        "--sample-id",
+        type=str,
+        required=True,
+        help="ASAP sample ID"
+    )
+    parser.add_argument(
+        "-b",
+        "--batch",
+        type=str,
+        required=True,
+        help="ASAP batch from which the sample/dataset originated"
+    )
+    parser.add_argument(
+        "-x",
+        "--sex",
+        type=str,
+        required=True,
+        help="The sample's sex"
+    )
+    parser.add_argument(
+        "--brain-region-level-1",
+        type=str,
+        required=False,
+        help="Abbreviation of most granular anatomical region (Level 1)"
+    )
+    parser.add_argument(
+        "--brain-region-level-2",
+        type=str,
+        required=False,
+        help="Abbreviation of intermediate level anatomical region (Level 2)"
+    )
+    parser.add_argument(
+        "--brain-region-level-3",
+        type=str,
+        required=False,
+        help="Abbreviation of coarse level anatomical region (Level 3)"
+    )
+    parser.add_argument(
+        "-p",
+        "--pool-id",
+        type=str,
+        required=False,
+        default=None,
+        help="Source pool ID used to construct 'batch_id'; provided only for multiplexed samples"
+    )
+    parser.add_argument(
+        "-a",
+        "--source-subject-id",
+        type=str,
+        required=False,
+        default=None,
+        help="Source subject/donor ID; provided only for multiplexed samples"
+    )
+    parser.add_argument(
+        "-j",
+        "--subject-id",
+        type=str,
+        required=False,
+        default=None,
+        help="ASAP subject/donor ID; provided only for multiplexed samples"
+    )
+    parser.add_argument(
+        "-o",
+        "--adata-output",
+        type=str,
+        required=True,
+        help="Output file name for saving the AnnData object"
+    )
+
+    args = parser.parse_args()
+
+    main(args)

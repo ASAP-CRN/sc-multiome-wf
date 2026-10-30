@@ -1,0 +1,234 @@
+#!/usr/bin/env python3
+
+import argparse
+import anndata
+import numpy as np
+import pandas as pd
+import scanpy as sc
+import mudata as md
+import hdf5plugin
+
+
+def arc_cell_barcodes(per_barcode_metrics_csvs: list) -> set:
+    """
+    Barcodes that Cell Ranger ARC called as cells, across one CSV per ARC run.
+    """
+    cells = set()
+    for csv in per_barcode_metrics_csvs:
+        pbm = pd.read_csv(csv)
+        called = pbm.loc[pbm["is_cell"] == 1, "barcode"]
+        cells |= set(called.astype(str).str.split("-").str[0])
+        print(f"{csv}: {len(called)} ARC cells")
+    print(f"ARC cells across {len(per_barcode_metrics_csvs)} run(s): {len(cells)}")
+    return cells
+
+
+def bare_barcodes(adata: sc.AnnData) -> pd.Index:
+    """
+    The raw 16-mer, with whatever suffix each modality carries stripped: RNA as
+    <bc>-1_<dataset_sample_id>_<n> from AnnData concat, ATAC as <bc>-<pool_id>
+    from split_demux_fragments (kept through peak calling).
+    """
+    return adata.obs_names.str.split("-").str[0]
+
+
+def joint_keys(adata: sc.AnnData, name: str) -> pd.Index:
+    """
+    <barcode>_<sample>_<pool>. Barcodes repeat across Cell Ranger ARC runs, and the
+    same donor (sample) can be in several pools, so all three are needed for a
+    unique key. Non-multiplexed samples have no obs['pool'] and are one run each.
+    """
+    pool = (
+        adata.obs["pool"].astype(object).fillna("").astype(str).values
+        if "pool" in adata.obs else np.full(adata.n_obs, "", dtype=object)
+    )
+    keys = pd.Index(
+        bare_barcodes(adata) + "_" + adata.obs["sample"].astype(str).values + "_" + pool
+    )
+    if not keys.is_unique:
+        duplicated = keys[keys.duplicated()].unique()
+        raise ValueError(
+            f"{name}: {len(duplicated)} <barcode>_<sample>_<pool> keys are not unique, "
+            f"e.g. {list(duplicated[:5])}. Check obs['sample'] and obs['pool']."
+        )
+    return keys
+
+
+def intersect_and_build(
+    adata_rna: sc.AnnData, adata_atac: sc.AnnData, min_overlap_frac: float,
+    per_barcode_metrics_csvs: list = None
+):
+    """
+    Assemble a paired-Multiome MuData from two cohort-level, post-QC AnnData objects:
+      - RNA:  {cohort}.scanvi_labeled.h5ad                (sc-rnaseq-wf `label_scanvi`; HVGs, scANVI labels)
+      - ATAC: {cohort}.harmony.leiden.peaks_matrix.h5ad   (sc-atacseq-wf Harmony Leiden `peak_calling`; cell-by-peak)
+
+    Spike-in reference cells are dropped from RNA. Both are re-keyed on
+    <barcode>_<sample>_<pool> and, when per-barcode metrics are supplied,
+    restricted to Cell Ranger ARC's joint cell call before pairing.
+    """
+    print(f"RNA cells (post-QC, scANVI-labeled): {adata_rna.n_obs}")
+    print(f"ATAC cells (post-QC, peak matrix): {adata_atac.n_obs}")
+
+    # Reference cells spiked into the RNA analysis have no ATAC counterpart, and
+    # their <barcode>_<sample>_<pool> keys need not be unique
+    if "is_spike_in" in adata_rna.obs:
+        is_spike_in = adata_rna.obs["is_spike_in"].astype(bool).to_numpy()
+        adata_rna = adata_rna[~is_spike_in].copy()
+        print(f"RNA spike-in cells dropped: {int(is_spike_in.sum())}")
+
+    if per_barcode_metrics_csvs:
+        cells = arc_cell_barcodes(per_barcode_metrics_csvs)
+        keep_rna = bare_barcodes(adata_rna).isin(cells)
+        keep_atac = bare_barcodes(adata_atac).isin(cells)
+        print(f"RNA restricted to ARC cells: {adata_rna.n_obs} -> {int(keep_rna.sum())}")
+        print(f"ATAC restricted to ARC cells: {adata_atac.n_obs} -> {int(keep_atac.sum())}")
+        adata_rna = adata_rna[keep_rna].copy()
+        adata_atac = adata_atac[keep_atac].copy()
+
+    # The joint key is only a matching device. Keep RNA's native index --
+    # <barcode>-1_<dataset_id>.<sample_id>[.<pool_id>]_<n>
+    rna_keys = joint_keys(adata_rna, "RNA")
+    atac_keys = joint_keys(adata_atac, "ATAC")
+    rna_native = pd.Series(adata_rna.obs_names.values, index=rna_keys)
+
+    adata_rna.obs_names = rna_keys
+    adata_atac.obs_names = atac_keys
+
+    n_rna = adata_rna.n_obs
+    n_atac = adata_atac.n_obs
+    shared = adata_rna.obs_names.intersection(adata_atac.obs_names)
+    n_shared = len(shared)
+    smaller = min(n_rna, n_atac)
+    frac = n_shared / smaller if smaller else 0.0
+    print(f"Paired cells (intersection): {n_shared}  "
+          f"({frac:.1%} of the smaller modality)")
+
+    if n_shared == 0:
+        raise ValueError(
+            "Zero shared cells between RNA and ATAC after keying on "
+            "<barcode>_<sample>_<pool>. Check that both objects carry obs['sample'] "
+            "and obs['pool'] with matching values, and that neither is keyed on atac_barcode."
+        )
+    if frac < min_overlap_frac:
+        raise ValueError(
+            f"Only {frac:.1%} of the smaller modality is shared "
+            f"(threshold {min_overlap_frac:.0%}). "
+            f"RNA={n_rna}, ATAC={n_atac}, shared={n_shared}. If the keys are "
+            "correct, this reflects genuine divergence between the two cell "
+            "calls rather than a formatting problem."
+        )
+
+    adata_rna = adata_rna[shared].copy()
+    adata_atac = adata_atac[shared].copy()
+
+    # Both modalities take RNA's identifier for the same cell.
+    # object dtype, not pandas nullable string: anndata >= 0.11 will not write
+    # nullable string arrays without an explicit opt-in.
+    native = pd.Index(rna_native.loc[shared].to_numpy(dtype=object))
+    adata_rna.obs_names = native
+    adata_atac.obs_names = native
+    print(f"Index format: {native[0]}")
+
+    mdata = md.MuData({"rna": adata_rna, "atac": adata_atac})
+    mdata.update()
+
+    print(f"Built MuData: {mdata.n_obs} cells x "
+          f"({mdata.mod['rna'].n_vars} genes, {mdata.mod['atac'].n_vars} peaks)")
+
+    return mdata
+
+
+def select_peaks(mdata: md.MuData, min_peak_cell_frac: float):
+    """
+    Flag ATAC peaks detected (count > 0) in at least min_peak_cell_frac of the
+    paired cells as var['selected']; integrate_multivi trains on these only.
+    """
+    atac = mdata.mod["atac"]
+    n_cells_detected = np.asarray((atac.X > 0).sum(axis=0)).ravel()
+    min_cells = int(np.ceil(min_peak_cell_frac * atac.n_obs))
+    selected = n_cells_detected >= min_cells
+    n_selected = int(selected.sum())
+    print(f"ATAC peaks detected in >= {min_peak_cell_frac:.1%} of paired cells "
+          f"(>= {min_cells} cells): {n_selected} of {atac.n_vars}")
+
+    if n_selected == 0:
+        raise ValueError(
+            f"No ATAC peaks are detected in at least {min_peak_cell_frac:.1%} of "
+            f"the {atac.n_obs} paired cells. Lower min_peak_cell_frac or check "
+            "that the ATAC object holds peak counts."
+        )
+
+    atac.var["selected"] = selected
+    return mdata
+
+
+def main(args):
+    anndata.settings.allow_write_nullable_strings = False
+
+    adata_rna = sc.read_h5ad(args.rna_adata_input)
+    adata_atac = sc.read_h5ad(args.atac_adata_input)
+
+    mdata = intersect_and_build(
+        adata_rna, adata_atac, args.min_overlap_frac, args.per_barcode_metrics
+    )
+    mdata = select_peaks(mdata, args.min_peak_cell_frac)
+
+    mdata.write(
+        filename=args.mudata_output,
+        compression="lzf"
+    )
+    print(f"Wrote {args.mudata_output}")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Intersect post-QC RNA and ATAC barcodes into a paired Multiome MuData"
+    )
+    parser.add_argument(
+        "-r",
+        "--rna-adata-input",
+        type=str,
+        required=True,
+        help="Cohort-level scANVI-labeled RNA AnnData ({cohort}.scanvi_labeled.h5ad from the RNA `label_scanvi` task)",
+    )
+    parser.add_argument(
+        "-a",
+        "--atac-adata-input",
+        type=str,
+        required=True,
+        help="Cohort-level ATAC cell-by-peak AnnData ({cohort}.harmony.leiden.peaks_matrix.h5ad from the ATAC Harmony Leiden `peak_calling` task)",
+    )
+    parser.add_argument(
+        "-f",
+        "--min-overlap-frac",
+        type=float,
+        default=0.5,
+        help="Minimum fraction of the smaller modality that must be shared; below this the run fails as a likely barcode-key mismatch [0.5]",
+    )
+    parser.add_argument(
+        "-c",
+        "--min-peak-cell-frac",
+        type=float,
+        default=0.01,
+        help="Minimum fraction of paired cells in which an ATAC peak must be detected to be flagged var['selected'] for MultiVI [0.01]",
+    )
+    parser.add_argument(
+        "-p",
+        "--per-barcode-metrics",
+        type=str,
+        nargs="*",
+        default=[],
+        help="Cell Ranger ARC per_barcode_metrics.csv files, one per ARC run; cells are restricted to barcodes with is_cell == 1",
+    )
+    parser.add_argument(
+        "-o",
+        "--mudata-output",
+        type=str,
+        required=True,
+        help="Output file name for saving the paired MuData object"
+    )
+
+    args = parser.parse_args()
+
+    main(args)
