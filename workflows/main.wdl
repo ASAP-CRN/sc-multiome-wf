@@ -294,7 +294,7 @@ workflow sc_multiome_analysis {
 				norm_target_sum = norm_target_sum,
 				n_top_genes = n_top_genes,
 				n_comps = n_comps,
-				scvi_latent_key =scvi_latent_key,
+				scvi_latent_key = scvi_latent_key,
 				scanvi_latent_key = scanvi_latent_key,
 				scanvi_predictions_key = scanvi_predictions_key,
 				batch_key = batch_key,

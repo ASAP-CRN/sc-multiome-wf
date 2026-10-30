@@ -270,14 +270,14 @@ if __name__ == "__main__":
         "-r",
         "--corr-threshold",
         type=float,
-        required=True,
+        default=0.1,
         help="Minimum absolute linkage correlation to retain [0.1]",
     )
     parser.add_argument(
         "-s",
         "--significance-threshold",
         type=float,
-        required=True,
+        default=0.0,
         help="Minimum linkage significance to retain [0.0]",
     )
     parser.add_argument(

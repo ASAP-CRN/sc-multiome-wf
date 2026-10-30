@@ -119,7 +119,7 @@ If you process the data yourself instead of (or after) using this workflow, cons
 
 # Workflows
 
-Worfklows are defined in [the `workflows` directory](workflows). The python scripts which process the data at each stage can be found in [the docker/sc_multiome_tools/scripts directory](docker/sc_multiome_tools/scripts).
+Workflows are defined in [the `workflows` directory](workflows). The python scripts which process the data at each stage can be found in [the docker/sc_multiome_tools/scripts directory](docker/sc_multiome_tools/scripts).
 
 Workflow name: `pmdbs_sc_multiome`
 
@@ -261,7 +261,7 @@ Every donor listed in a pool's `multiplexed_samples` must have cells assigned to
 
 ## Generating the inputs JSON
 
-The inputs JSON may be generated manually, however when running a large number of samples, this can become unwieldly. The [`generate_inputs` utility script](https://github.com/ASAP-CRN/wf-common/blob/main/util/workflow_inputs/generate_inputs) may be used to automatically generate the inputs JSON (`inputs.{staging_env}.{cohort_dataset_id}.{date}.json`) and a sample list TSV (`{team_id}.{cohort_dataset_id}.sample_list.{date}.tsv`); same as the one generated in [the write_cohort_sample_list task](https://github.com/ASAP-CRN/wf-common/blob/main/wdl/tasks/write_cohort_sample_list.wdl)). The script requires the libraries outlined in [the requirements.txt file](https://github.com/ASAP-CRN/wf-common/blob/main/util/requirements.txt) and the following inputs:
+The inputs JSON may be generated manually, however when running a large number of samples, this can become unwieldy. The [`generate_inputs` utility script](https://github.com/ASAP-CRN/wf-common/blob/main/util/workflow_inputs/generate_inputs) may be used to automatically generate the inputs JSON (`inputs.{staging_env}.{cohort_dataset_id}.{date}.json`) and a sample list TSV (`{team_id}.{cohort_dataset_id}.sample_list.{date}.tsv`); same as the one generated in [the write_cohort_sample_list task](https://github.com/ASAP-CRN/wf-common/blob/main/wdl/tasks/write_cohort_sample_list.wdl)). The script requires the libraries outlined in [the requirements.txt file](https://github.com/ASAP-CRN/wf-common/blob/main/util/requirements.txt) and the following inputs:
 
 - `project-tsv`: One or more project TSVs with one row per sample (per donor within a pool, if multiplexed). All samples from all projects may be included in the same project TSV, or multiple project TSVs may be provided. Rows sharing a `pool_id` are grouped into one pool; their FASTQs are combined.
     - `team_id`: A unique identifier for the team from which the sample(s) arose.

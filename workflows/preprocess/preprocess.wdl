@@ -100,7 +100,8 @@ workflow preprocess {
 		Array[String] project_sample_id = [team_id, sample.sample_id, dataset_doi_url]
 
 		String cellranger_arc_counts_complete = check_cellranger_arc_output_files_exist.sample_preprocessing_complete[index][0]
-		Boolean run_rna_cellbender = if cellranger_arc_counts_complete == "false" then true else !check_cellbender_output_files_exist.all_exist
+		String rna_cellbender_complete = check_cellbender_output_files_exist.sample_preprocessing_complete[index][0]
+		Boolean run_rna_cellbender = if cellranger_arc_counts_complete == "false" then true else (rna_cellbender_complete == "false")
 
 		String cellranger_arc_multiome_outputs_tar_gz = "~{cellranger_arc_raw_data_path}/~{dataset_sample_id}.cellranger_arc_multiome_outputs.tar.gz"
 		String cellranger_arc_raw_counts = "~{cellranger_arc_raw_data_path}/~{dataset_sample_id}.raw_feature_bc_matrix.h5"
@@ -333,7 +334,8 @@ workflow preprocess {
 					zones = zones
 			}
 
-			Boolean run_atac_adata = if cellranger_arc_counts_complete == "false" then true else !check_atac_adata_output_files_exist.all_exist
+			String atac_adata_complete = check_atac_adata_output_files_exist.sample_preprocessing_complete[index][0]
+			Boolean run_atac_adata = if cellranger_arc_counts_complete == "false" then true else (atac_adata_complete == "false")
 
 			if (run_rna_adata) {
 				call counts_to_adata as rna_counts_to_adata {
